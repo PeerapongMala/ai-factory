@@ -1,93 +1,196 @@
-# 🤖 Pang Game Company - Project Summary
+# Pang Game Company
 
-เอกสารสรุปสถาปัตยกรรมและรายละเอียดการดำเนินการสร้างระบบ **"Pang Game Company"** สำหรับการผลิตคลิปวิดีโอสั้นจากข่าวประจำวันอัตโนมัติ
-
-## 🎯 ภาพรวมของระบบ (Overview)
-โปรเจกต์นี้ถูกออกแบบมาในรูปแบบ **Multi-Agent System (5 Roles)** เพื่อให้ n8n และ Run-time อย่าง Bun ทำงานผสานกันเป็นสายพานผลิต Content โดยตั้งเป้าหมายหลักคือ **"การควบคุมงบประมาณไม่ให้เกิน 1,000 บาท/เดือน"** ผ่านระบบ Guardrail และหลีกเลี่ยง Docker
+ระบบผลิต content ข่าวเกมอัตโนมัติ โพสต์ลง Facebook + Instagram
+ทำงาน 24/7 ผ่าน GitHub Actions ไม่ต้องเปิดคอม
 
 ---
 
-## 🏢 แผนกและโครงสร้างบริษัท (Company Departments)
-บริษัท **Pang Game Company** ออกแบบโครงสร้างแผนกและโฟลเดอร์ไว้ดังนี้:
+## โครงสร้างบริษัท
 
-```text
-📂 pang-game-company/
- ├── 📂 assets/                     <-- โฟลเดอร์เก็บน้องปัง (Stickers) โลโก้ และไฟล์สื่อออฟไลน์
- ├── 📂 config/
- │    └── gemini_config.json        <-- [Master Prompt] คุม Tone of Voice และแบ่ง JSON (Static / Reels)
- ├── 📂 logs/
- │    └── processed_hashes.json     <-- เก็บประวัติข่าว กันการทำคลิปซ้ำซ้อน
- ├── 📂 scripts/
- │    ├── fetch_news.ts             <-- ดึงข่าว RSS (มีระบบสำรองอัตโนมัติ)
- │    ├── process_content.ts        <-- ให้ AI สร้างบทความข่าว (หัวใจหลัก)
- │    │
- │    ├── 📝 แผนกโพสต์ภาพ (Post Department)
- │    │    └── render_static.ts     <-- สั่ง Creatomate แปะ Layer ภาพ 1:1, พาดหัว, ป้ายราคา
- │    │    └── social_post.ts       <-- อัปโหลดแคปชั่นและรูปขึ้น Facebook/IG
- │    │
- │    ├── 🎬 แผนกวิดีโอ (Reels Department)
- │    │    └── text_to_speech.ts    <-- สั่ง ElevenLabs พากย์เสียง
- │    │    └── render_video.ts      <-- สั่ง Creatomate สร้างคลิป 9:16 สไตล์เกมปัง
- │    │
- │    └── test_pipeline.ts          <-- ไฟล์สำหรับทดสอบการทำงานรวดเดียวจบ
- ├── 📂 workflows/
- │    └── n8n-architecture.md       <-- คู่มือการโยง Flow แผนกต่างๆ ใน n8n
- └── index.html                     <-- [Dashboard] หน้ามอนิเตอร์สถานะการทำงานของแต่ละแผนก
+PM (ผู้จัดการ) สั่งงานพนักงาน 5 คน ทีละขั้น:
+
+```
+PM สั่งงาน → นักข่าว → นักเขียน → ตรวจสอบ → กราฟิก → โพสต์
 ```
 
-## 🎭 สรุปฟีเจอร์ป้องกันรอยต่อ (Seamless Update V1.1)
-1. **Error Fallback**: ในขั้น Researcher หากสำนักข่าวหลัก Down จะสลับไปเอา RSS ของสำนักข่าวสำรองอัตโนมัติเพื่อไม่ให้สายพานหยุด
-2. **Duplicate Hashing**: นำ Hash Generator มาใช้ควบคู่กับ JSON ในแฟ้ม logs/ เพื่อจำประวัติ 1,000 คลิปหลังสุด กันไม่ให้ AI ทำคลิปซ้ำข่าวเดิม (ประหยัดงบ)
-3. **Voiceover Pipeline**: เพิ่มโฟลเดอร์ `assets/` รักษารูปแบบ Directory Structure เตรียมต่อยอดส่งสคริปต์ให้เครื่องมือแปลงเสียงพูด
-4. **OpenClaw Dashboard**: หน้าจอติดตามผลเรียลไทม์จำลองสไตล์เกม MMO ที่มีระบบแสดง Log เป็นช่องแชท
+| พนักงาน | หน้าที่ | ไฟล์ |
+|---------|--------|------|
+| PM | สั่งงาน รับรายงาน retry ถ้าพัง | `scripts/pm.ts` |
+| นักข่าว | ดึง RSS ข่าวเกม กรอง 24 ชม. กัน hash ซ้ำ | `scripts/fetch_news.ts` |
+| นักเขียน | เขียน caption ด้วย AI (Gemini/OpenAI/Claude) | `scripts/process_content.ts` |
+| ตรวจสอบ | เช็คข่าวไม่ซ้ำ + ไม่เก่าเกิน 24 ชม. | (อยู่ใน fetch_news) |
+| กราฟิก | render ภาพ 1:1 ด้วย Creatomate | `scripts/post_dept/render_static.ts` |
+| โพสต์ | โพสต์ FB + IG ผ่าน Ayrshare | `scripts/post_dept/social_post.ts` |
 
 ---
 
-## 🗺️ แผนผังการทำงานของสายพาน (Workflow Diagram)
-ระบบมีการไหลของข้อมูลตั้งแต่ต้นน้ำยันปลายน้ำ โดยใช้ Agent ทั้ง 5 ตัวคอยประสานงานและตรวจสอบความปลอดภัย ดังนี้ครับ:
+## คำสั่ง PM
 
-```mermaid
-graph TD
-    %% Core Nodes
-    Router(["🕒 The Router: Schedule Trigger"])
-    Researcher["📡 The Researcher: fetch_news.ts"]
-    Fallback{"RSS มีปัญหา?"}
-    HashCheck{"ข่าวยังไม่เคยทำคลิป?"}
-    Memory[("💾 The Summarizer: Hashing Log")]
-    Executor["🧠 The Executor: process_content.ts"]
-    Guardian{"🛡️ The Guardian: Token > Limit?"}
-    API(("🤖 Gemini API"))
-    Wait{"👨‍💻 Approval: รอคนอนุมัติ"}
-    Output["🎬 Social Media / 'assets/'"]
+```bash
+# รัน pipeline ทั้งหมด
+bun run scripts/pm.ts
 
-    %% Flow lines
-    Router -->|"n8n สั่งเริ่มงาน"| Researcher
-    Researcher --> Fallback
-    Fallback -->|"ใช่ (Web ล่ม)"| RSS2["สลับไปดึงจาก Sanook"]
-    Fallback -->|"ไม่ใช่"| RSS1["ดึงข้อมูลจาก Thairath"]
-    RSS1 --> HashCheck
-    RSS2 --> HashCheck
-    
-    HashCheck -->|"ข่าวเดิม (ซ้ำ)"| Drop["❌ ข้ามข่าวนี้ (Skip)"]
-    HashCheck -->|"ข่าวใหม่"| Memory
-    
-    Memory -->|"บันทึก Hash ลงระบบ"| Executor
-    Executor --> Guardian
-    
-    Guardian -->|"ยาวไป / เกินงบ"| Halt["❌ ยกเลิกการเรียก API"]
-    Guardian -->|"อยู่ในงบประมาณ"| API
-    
-    API -->|"รับข้อความสคริปต์"| Wait
-    Wait -->|"แอดมินพิมพ์ '/approve'"| Output
+# ดูพนักงานทั้งหมด
+bun run scripts/pm.ts list
 
-    %% Game GUI Colors
-    classDef sys fill:#1f2937,stroke:#3b82f6,color:#fff;
-    classDef res fill:#064e3b,stroke:#10b981,color:#fff;
-    classDef exec fill:#4c1d95,stroke:#a855f7,color:#fff;
-    classDef guard fill:#7c2d12,stroke:#f97316,color:#fff;
+# สอนพนักงาน (เพิ่ม feedback เข้า memory)
+bun run scripts/pm.ts train นักเขียน "caption สั้นลง ไม่เกิน 3 บรรทัด"
+bun run scripts/pm.ts train กราฟิก "mascot ใหญ่ขึ้น สะดุดตากว่านี้"
 
-    class Router,Memory,Output,Wait sys;
-    class Researcher,RSS1,RSS2,Drop res;
-    class Executor,API exec;
-    class Guardian,Halt guard;
+# ดู memory ทุกคน
+bun run scripts/pm.ts memory
+
+# ดู memory เฉพาะคน
+bun run scripts/pm.ts memory นักเขียน
 ```
+
+**ชื่อพนักงานที่ใช้ได้:** pm, นักข่าว, นักเขียน, ตรวจสอบ, กราฟิก, โพสต์
+
+---
+
+## เปลี่ยน AI Provider
+
+พนักงานแต่ละคนเลือก AI ตัวไหนก็ได้ แก้ใน `config/agents/<ชื่อ>.json`:
+
+### Gemini (ฟรี 1,500 req/day)
+```json
+{
+  "provider": "gemini",
+  "model": "gemini-2.0-flash"
+}
+```
+ต้องมี: `GEMINI_API_KEY` ใน .env
+
+### OpenAI
+```json
+{
+  "provider": "openai",
+  "model": "gpt-4o-mini"
+}
+```
+ต้องมี: `OPENAI_API_KEY` ใน .env
+
+### Claude
+```json
+{
+  "provider": "claude",
+  "model": "claude-haiku-4-5-20251001"
+}
+```
+ต้องมี: `ANTHROPIC_API_KEY` ใน .env
+
+### Groq (ฟรี, เร็วมาก)
+```json
+{
+  "provider": "openai",
+  "model": "llama-3.3-70b-versatile",
+  "apiKeyEnv": "GROQ_API_KEY",
+  "baseUrl": "https://api.groq.com/openai/v1"
+}
+```
+ต้องมี: `GROQ_API_KEY` ใน .env
+
+### Ollama (รันเอง, ฟรี)
+```json
+{
+  "provider": "openai",
+  "model": "llama3",
+  "apiKeyEnv": "OLLAMA_KEY",
+  "baseUrl": "http://localhost:11434/v1"
+}
+```
+ใส่ `OLLAMA_KEY=ollama` ใน .env (ค่าอะไรก็ได้)
+
+---
+
+## ระบบ Memory / Training
+
+พนักงานทุกคนเทรนได้ PM สอนผ่าน feedback → จำไปใช้ใน prompt ครั้งถัดไป
+
+- Memory เก็บใน `config/agents/<ชื่อ>.json` → field `memory[]`
+- เก็บสูงสุด 50 feedback ต่อคน
+- ตอน generate content จะแปะ memory เข้าไปใน system prompt อัตโนมัติ
+
+```
+ตัวอย่าง flow:
+แอดมิน → PM train นักเขียน "ใส่ emoji เยอะขึ้น"
+→ บันทึกลง writer.json memory
+→ ครั้งถัดไป Gemini จะเห็น feedback นี้ใน prompt
+→ นักเขียนเขียน caption มี emoji เยอะขึ้น
+```
+
+---
+
+## API Keys ที่ต้องมี
+
+ใส่ใน `.env` (local) และ GitHub Secrets (production):
+
+| Key | ใช้ทำอะไร | ฟรี? |
+|-----|----------|------|
+| `GEMINI_API_KEY` | นักเขียน generate content | ฟรี 1,500 req/day |
+| `CREATOMATE_API_KEY` | กราฟิก render ภาพ | ฟรี limited |
+| `CREATOMATE_STATIC_TEMPLATE_ID` | template ID ภาพ 1:1 | - |
+| `AYRSHARE_API_KEY` | โพสต์ FB + IG | ฟรี limited |
+| `TELEGRAM_BOT_TOKEN` | PM รายงานผล | ฟรี |
+| `TELEGRAM_CHAT_ID` | chat ที่ PM ส่งรายงาน | ฟรี |
+
+---
+
+## รัน 24/7
+
+ใช้ GitHub Actions cron ทุก 30 นาที:
+
+```
+.github/workflows/pang-game-pipeline.yml
+```
+
+- ไม่ต้องเปิดคอม
+- PM จะรายงานผลทาง Telegram ทุกรอบ
+- ถ้า rate limit → retry อัตโนมัติ 3 ครั้ง
+
+---
+
+## โครงสร้างไฟล์
+
+```
+ai-content-factory/
+├── config/
+│   └── agents/           # JSON config พนักงานทุกคน
+│       ├── pm.json
+│       ├── reporter.json
+│       ├── writer.json    # ← มี provider, model, systemPrompt, memory
+│       ├── guardian.json
+│       ├── graphic.json
+│       └── publisher.json
+├── scripts/
+│   ├── pm.ts              # PM สั่งงาน + train + memory
+│   ├── fetch_news.ts      # นักข่าว
+│   ├── process_content.ts # นักเขียน (ใช้ AI adapter)
+│   ├── ai/
+│   │   └── provider.ts    # AI adapter (Gemini/OpenAI/Claude)
+│   ├── agents/
+│   │   └── memory.ts      # ระบบ memory/training
+│   └── post_dept/
+│       ├── render_static.ts  # กราฟิก
+│       └── social_post.ts    # โพสต์
+├── logs/
+│   └── processed_hashes.json # กัน hash ข่าวซ้ำ
+├── assets/                # sticker น้องปัง
+├── index.html             # Dashboard Pixel Office
+└── .github/workflows/     # GitHub Actions cron
+```
+
+---
+
+## งบประมาณ
+
+เป้าหมาย: ไม่เกิน 1,000 บาท/เดือน
+
+| บริการ | ค่าใช้จ่าย |
+|--------|-----------|
+| Gemini 2.0 Flash | ฟรี 1,500 req/day |
+| GitHub Actions | ฟรี 2,000 min/month |
+| Creatomate | ฟรี tier |
+| Ayrshare | ฟรี tier |
+| Telegram Bot | ฟรี |
+| **รวม** | **0 บาท** (ถ้าไม่เกิน free tier) |
