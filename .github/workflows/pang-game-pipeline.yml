@@ -69,19 +69,10 @@ jobs:
           CREATOMATE_API_KEY: ${{ secrets.CREATOMATE_API_KEY }}
           CREATOMATE_STATIC_TEMPLATE_ID: ${{ secrets.CREATOMATE_STATIC_TEMPLATE_ID }}
 
-      - name: Step 4 - Telegram Approval (Guardian)
+      - name: Step 4 - Post to Social (Distributor)
         if: steps.fetch.outputs.skip == 'false' && steps.executor.outputs.skip == 'false'
         run: |
-          bun run scripts/request_approval.ts /tmp/step3.json > /tmp/step4.json 2>/dev/null
-          cat /tmp/step4.json
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-
-      - name: Step 5 - Post to Social (Distributor)
-        if: steps.fetch.outputs.skip == 'false' && steps.executor.outputs.skip == 'false'
-        run: |
-          bun run scripts/post_dept/social_post.ts /tmp/step4.json 2>/dev/null
+          bun run scripts/post_dept/social_post.ts /tmp/step3.json 2>/dev/null
         env:
           AYRSHARE_API_KEY: ${{ secrets.AYRSHARE_API_KEY }}
 
