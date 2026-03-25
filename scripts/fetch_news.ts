@@ -77,6 +77,7 @@ async function fetchNews(): Promise<ResearcherOutput> {
         const titleRegex = /<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/;
         const linkRegex = /<link>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/link>/;
         const descRegex = /<description>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/description>/;
+        const pubDateRegex = /<pubDate>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/pubDate>/;
 
         let match;
         while ((match = itemRegex.exec(textData)) !== null) {
@@ -94,6 +95,17 @@ async function fetchNews(): Promise<ResearcherOutput> {
             // [Summarizer Logic]: Prevent Duplicate Run
             if (hashLog.has(newsHash)) {
               continue; // Skip already made clipping
+            }
+
+            // [Guardian Logic]: Skip news older than 24 hours
+            const pubDateMatch = pubDateRegex.exec(itemXml);
+            if (pubDateMatch) {
+              const pubDate = new Date(pubDateMatch[1].trim());
+              const ageMs = Date.now() - pubDate.getTime();
+              const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+              if (ageMs > MAX_AGE_MS) {
+                continue; // Skip old news
+              }
             }
 
             allNews.push({

@@ -248,24 +248,25 @@
         const { useState, useEffect, useRef } = React;
 
         const AI_ROLES = [
-            { id: 'scout', name: 'RSS Scout (News)', image: 'assets/avatars/researcher.png', dept: 'Core' },
-            { id: 'brain', name: 'Gemini (The Brain)', image: 'assets/avatars/executor.png', dept: 'Post' },
-            { id: 'anti', name: 'Creatomate (Anti)', image: 'assets/avatars/guardian.png', dept: 'Post' },
-            { id: 'publisher', name: 'Telegram/FB', image: 'assets/avatars/summarizer.png', dept: 'Post' },
-            { id: 'voice', name: 'ElevenLabs (Voice)', image: 'assets/avatars/router.png', dept: 'Reels' },
-            { id: 'pexel', name: 'Pexels (B-Roll)', image: 'assets/avatars/researcher.png', dept: 'Reels' }
+            { id: 'scout', name: 'นักข่าว (RSS Scout)', image: 'assets/avatars/researcher.png', dept: 'Core' },
+            { id: 'brain', name: 'นักเขียน (Gemini)', image: 'assets/avatars/executor.png', dept: 'Post' },
+            { id: 'guardian', name: 'ตรวจสอบ (Guardian)', image: 'assets/avatars/guardian.png', dept: 'Core' },
+            { id: 'anti', name: 'กราฟิก (Creatomate)', image: 'assets/avatars/guardian.png', dept: 'Post' },
+            { id: 'publisher', name: 'โพสต์ (FB/IG)', image: 'assets/avatars/summarizer.png', dept: 'Post' },
+            { id: 'voice', name: 'พากย์เสียง (ElevenLabs)', image: 'assets/avatars/router.png', dept: 'Reels' },
+            { id: 'pexel', name: 'หาคลิป (Pexels)', image: 'assets/avatars/researcher.png', dept: 'Reels' }
         ];
 
         // Simulated Flow
         const DEMO_FLOW = [
-            { time: 500, agent: 'scout', status: '[ACTIVE]', dot: 'dot-green', progress: 100, msg: 'Schedule Triggered. Fetching RSS...' },
-            { time: 2000, agent: 'scout', status: '[DONE]', dot: 'dot-green', progress: 40, msg: 'News fetched! Dispatching to Post Dept...' },
-            { time: 3500, agent: 'brain', status: '[WRITING]', dot: 'dot-green', progress: 80, msg: 'Generating Viral Context & mascot_mood...' },
-            { time: 4500, agent: 'anti', status: '[RENDERING]', dot: 'dot-orange', progress: 100, msg: 'Injecting Base64 Mascot to 1:1 Image...' },
-            { time: 6000, agent: 'voice', status: '[SLEEP]', dot: 'dot-gray', progress: 30, msg: 'ElevenLabs: Waiting for video task (Offline)' },
-            { time: 7000, agent: 'pexel', status: '[SLEEP]', dot: 'dot-gray', progress: 50, msg: 'Pexels: Waiting for video task (Offline)' },
-            { time: 8000, agent: 'anti', status: '[DONE]', dot: 'dot-green', progress: 80, msg: 'Image generated. Sending to Publisher!' },
-            { time: 9000, agent: 'publisher', status: '[ALERT]', dot: 'dot-red', progress: 100, msg: '⚠️ REQUIRE APPROVAL: Confirm to Post.', isAlert: true }
+            { time: 500, agent: 'scout', status: '[ACTIVE]', dot: 'dot-green', progress: 100, msg: 'กำลังดึงข่าวจาก RSS...' },
+            { time: 2000, agent: 'scout', status: '[DONE]', dot: 'dot-green', progress: 40, msg: 'ได้ข่าวใหม่ 2 ข่าว! ส่งต่อให้นักเขียน...' },
+            { time: 3000, agent: 'guardian', status: '[CHECKING]', dot: 'dot-orange', progress: 60, msg: 'ตรวจสอบ: ไม่ซ้ำ + ข่าวไม่เกิน 24 ชม. ผ่าน!' },
+            { time: 4500, agent: 'brain', status: '[WRITING]', dot: 'dot-green', progress: 80, msg: 'Gemini กำลังเขียน Caption + mascot_mood...' },
+            { time: 6000, agent: 'anti', status: '[RENDERING]', dot: 'dot-orange', progress: 100, msg: 'Creatomate กำลังวาดภาพ 1:1 + แปะน้อง Pang...' },
+            { time: 7500, agent: 'anti', status: '[DONE]', dot: 'dot-green', progress: 80, msg: 'ภาพเสร็จแล้ว! ส่งต่อให้ฝ่ายโพสต์...' },
+            { time: 9000, agent: 'publisher', status: '[POSTING]', dot: 'dot-green', progress: 100, msg: 'กำลังโพสต์ Facebook + Instagram...' },
+            { time: 10000, agent: 'publisher', status: '[DONE]', dot: 'dot-green', progress: 100, msg: '✅ โพสต์สำเร็จ! รอรอบถัดไป 30 นาที' }
         ];
 
         const App = () => {
@@ -533,10 +534,11 @@
                                     {/* Employees */}
                                     {(() => {
                                         const employees = [
-                                            { name: 'Scout', color: '#10b981', x: '8%', y: '52%', agentId: 'scout', emoji: '📡', particleColor: '#10b981' },
-                                            { name: 'Gemini', color: '#a855f7', x: '30%', y: '52%', agentId: 'brain', emoji: '🧠', particleColor: '#a855f7' },
-                                            { name: 'Anti', color: '#f97316', x: '54%', y: '52%', agentId: 'anti', emoji: '🎨', particleColor: '#f97316' },
-                                            { name: 'Post', color: '#3b82f6', x: '78%', y: '52%', agentId: 'publisher', emoji: '📤', particleColor: '#3b82f6' },
+                                            { name: 'นักข่าว', color: '#10b981', x: '5%', y: '52%', agentId: 'scout', emoji: '📡', particleColor: '#10b981' },
+                                            { name: 'นักเขียน', color: '#a855f7', x: '23%', y: '52%', agentId: 'brain', emoji: '🧠', particleColor: '#a855f7' },
+                                            { name: 'ตรวจสอบ', color: '#ef4444', x: '41%', y: '52%', agentId: 'guardian', emoji: '🛡️', particleColor: '#ef4444' },
+                                            { name: 'กราฟิก', color: '#f97316', x: '59%', y: '52%', agentId: 'anti', emoji: '🎨', particleColor: '#f97316' },
+                                            { name: 'โพสต์', color: '#3b82f6', x: '77%', y: '52%', agentId: 'publisher', emoji: '📤', particleColor: '#3b82f6' },
                                         ];
                                         return employees.map((emp, i) => {
                                             const agentState = agents.find(a => a.id === emp.agentId);
