@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pang Game Company - Command Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#1c1512',     // Dark warm room bg
+                        panelBg: '#2b1e16',    // Toast crust panel
+                        neonBlue: '#06b6d4',   // RGB Keyboard Cyan
+                        neonGreen: '#10b981',  // -80% Tag Green
+                        neonOrange: '#f97316', // Flame Orange
+                        neonPurple: '#d946ef', // RGB Keyboard Pink
+                        neonRed: '#ef4444',    // Cape Red
+                        gridColor: 'rgba(249, 115, 22, 0.1)',
+                    },
+                    fontFamily: {
+                        pixel: ['"VT323"', 'monospace'],
+                        title: ['"Silkscreen"', 'cursive'],
+                        game: ['"Inter"', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Silkscreen&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <!-- Babel -->
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+
+    <style>
+        body {
+            background-color: #1c1512;
+            color: #fed7aa;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow-x: hidden;
+            /* Circuit board grid background */
+            background-image: 
+                linear-gradient(rgba(249, 115, 22, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(249, 115, 22, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        /* Custom MMO Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.5); }
+        ::-webkit-scrollbar-thumb { background: #f97316; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #fdba74; }
+
+        /* Panels Kairosoft Style */
+        .panel {
+            background-color: #2b1e16;
+            border: 4px solid #7c2d12;
+            border-radius: 4px;
+            box-shadow:  inset 3px 3px 0px rgba(255,255,255,0.1), inset -3px -3px 0px rgba(0,0,0,0.3), 0 4px 6px rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+        .panel-blue { border-color: #06b6d4; box-shadow: 0 0 10px rgba(6, 182, 212, 0.2); }
+        .panel-orange { border-color: #f97316; box-shadow: 0 0 10px rgba(249, 115, 22, 0.2); }
+        .panel-green { border-color: #10b981; box-shadow: 0 0 10px rgba(16, 185, 129, 0.2); }
+
+        .panel-header {
+            position: absolute;
+            top: -10px;
+            left: 16px;
+            background: #1c1512;
+            padding: 0 8px;
+            font-size: 14px;
+            color: #fdba74;
+            font-family: 'VT323', monospace;
+            letter-spacing: 2px;
+            text-shadow: 0 0 5px currentColor;
+        }
+
+        /* Status Dots */
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; transition: all 0.3s; }
+        .dot-green { background-color: #10b981; box-shadow: 0 0 8px #10b981; }
+        .dot-orange { background-color: #f97316; box-shadow: 0 0 8px #f97316; }
+        .dot-red { background-color: #ef4444; box-shadow: 0 0 12px #ef4444; animation: pulse 1s infinite alternate; }
+        .dot-gray { background-color: #475569; }
+
+        @keyframes pulse {
+            from { box-shadow: 0 0 5px #ef4444; }
+            to { box-shadow: 0 0 20px #ef4444; }
+        }
+
+        /* Avatar Box */
+        .avatar-box {
+            width: 40px; height: 40px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            /* Kairosoft UI Element Border */
+            border: 3px solid #334155;
+            box-shadow: inset 2px 2px 0px rgba(255,255,255,0.1), inset -2px -2px 0px rgba(0,0,0,0.4);
+        }
+
+        /* Bar Chart Animation */
+        .bar { transition: height 0.5s ease-out; }
+
+        /* Kairosoft UX Animations */
+        @keyframes kairosoftWork {
+            0% { transform: translateY(0px) scale(1); }
+            50% { transform: translateY(-4px) scale(0.95); }
+            100% { transform: translateY(0px) scale(1); }
+        }
+        .anim-work img { animation: kairosoftWork 0.3s infinite alternate; }
+        
+        .hud-box {
+            background-color: #1e293b;
+            border: 3px solid #cbd5e1;
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.5);
+            font-family: 'VT323', monospace;
+            padding: 4px 12px;
+            color: #fff;
+            font-size: 1.5rem;
+            display: inline-block;
+        }
+
+        /* Pixel Office Styles */
+        .pixel-floor {
+            background: repeating-conic-gradient(#2a1f14 0% 25%, #231a10 0% 50%) 0 0 / 20px 20px;
+        }
+        .pixel-desk {
+            width: 56px; height: 32px;
+            background: #8B5E3C;
+            border: 2px solid #5C3A1E;
+            border-radius: 2px;
+            box-shadow: inset 2px 2px 0px rgba(255,255,255,0.2), 0 4px 0 #3d2210;
+            position: relative;
+        }
+        .pixel-desk::after {
+            content: '';
+            position: absolute; bottom: -8px; left: 10px;
+            width: 36px; height: 8px;
+            background: #5C3A1E;
+            border-radius: 0 0 2px 2px;
+        }
+        .pixel-monitor {
+            width: 24px; height: 18px;
+            background: #111;
+            border: 2px solid #555;
+            border-radius: 2px;
+            position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+            box-shadow: 0 0 6px rgba(6,182,212,0.4);
+            transition: all 0.3s;
+        }
+        .pixel-monitor.on {
+            background: #0c2d3f;
+            box-shadow: 0 0 12px rgba(6,182,212,0.8);
+            border-color: #06b6d4;
+        }
+        .pixel-monitor.on::after {
+            content: ''; position: absolute; top: 3px; left: 3px;
+            width: 14px; height: 2px; background: #06b6d4;
+            animation: monitorBlink 1.5s infinite;
+        }
+        .pixel-monitor.on::before {
+            content: ''; position: absolute; top: 7px; left: 3px;
+            width: 10px; height: 2px; background: #10b981;
+            animation: monitorBlink 2s 0.5s infinite;
+        }
+        @keyframes monitorBlink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        .pixel-char {
+            width: 20px; height: 24px;
+            image-rendering: pixelated;
+            position: absolute; top: -28px;
+        }
+        @keyframes pixelTyping {
+            0%, 100% { transform: translateY(0) scaleY(1); }
+            15% { transform: translateY(-3px) scaleY(0.95); }
+            30% { transform: translateY(0) scaleY(1); }
+            45% { transform: translateY(-2px) scaleY(0.97); }
+            60% { transform: translateY(0) scaleY(1); }
+        }
+        .typing .pixel-char { animation: pixelTyping 0.6s infinite; }
+        @keyframes pixelIdle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-1px); }
+        }
+        .idle .pixel-char { animation: pixelIdle 3s infinite; }
+
+        /* Particles floating up from monitor */
+        @keyframes particleUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-20px) scale(0.3); opacity: 0; }
+        }
+        .particle {
+            position: absolute;
+            width: 3px; height: 3px;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particleUp 1.2s ease-out infinite;
+        }
+
+        /* Emoji bubble pop */
+        @keyframes bubblePop {
+            0% { transform: translateX(-50%) scale(0); opacity: 0; }
+            20% { transform: translateX(-50%) scale(1.2); opacity: 1; }
+            30% { transform: translateX(-50%) scale(1); opacity: 1; }
+            80% { transform: translateX(-50%) scale(1); opacity: 1; }
+            100% { transform: translateX(-50%) scale(0.5); opacity: 0; }
+        }
+        .emoji-bubble {
+            position: absolute;
+            top: -38px; left: 50%;
+            transform: translateX(-50%);
+            background: #1a1a2e;
+            border: 2px solid #444;
+            border-radius: 6px;
+            padding: 2px 6px;
+            font-size: 16px;
+            animation: bubblePop 2s ease-in-out infinite;
+            z-index: 10;
+            white-space: nowrap;
+        }
+        .emoji-bubble::after {
+            content: '';
+            position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%);
+            width: 0; height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 5px solid #444;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col p-4 md:p-6 overflow-hidden">
+    <div id="root" class="h-full flex flex-col w-full max-w-[1600px] mx-auto gap-6 relative"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const AI_ROLES = [
+            { id: 'scout', name: 'RSS Scout (News)', image: 'assets/avatars/researcher.png', dept: 'Core' },
+            { id: 'brain', name: 'Gemini (The Brain)', image: 'assets/avatars/executor.png', dept: 'Post' },
+            { id: 'anti', name: 'Creatomate (Anti)', image: 'assets/avatars/guardian.png', dept: 'Post' },
+            { id: 'publisher', name: 'Telegram/FB', image: 'assets/avatars/summarizer.png', dept: 'Post' },
+            { id: 'voice', name: 'ElevenLabs (Voice)', image: 'assets/avatars/router.png', dept: 'Reels' },
+            { id: 'pexel', name: 'Pexels (B-Roll)', image: 'assets/avatars/researcher.png', dept: 'Reels' }
+        ];
+
+        // Simulated Flow
+        const DEMO_FLOW = [
+            { time: 500, agent: 'scout', status: '[ACTIVE]', dot: 'dot-green', progress: 100, msg: 'Schedule Triggered. Fetching RSS...' },
+            { time: 2000, agent: 'scout', status: '[DONE]', dot: 'dot-green', progress: 40, msg: 'News fetched! Dispatching to Post Dept...' },
+            { time: 3500, agent: 'brain', status: '[WRITING]', dot: 'dot-green', progress: 80, msg: 'Generating Viral Context & mascot_mood...' },
+            { time: 4500, agent: 'anti', status: '[RENDERING]', dot: 'dot-orange', progress: 100, msg: 'Injecting Base64 Mascot to 1:1 Image...' },
+            { time: 6000, agent: 'voice', status: '[SLEEP]', dot: 'dot-gray', progress: 30, msg: 'ElevenLabs: Waiting for video task (Offline)' },
+            { time: 7000, agent: 'pexel', status: '[SLEEP]', dot: 'dot-gray', progress: 50, msg: 'Pexels: Waiting for video task (Offline)' },
+            { time: 8000, agent: 'anti', status: '[DONE]', dot: 'dot-green', progress: 80, msg: 'Image generated. Sending to Publisher!' },
+            { time: 9000, agent: 'publisher', status: '[ALERT]', dot: 'dot-red', progress: 100, msg: '⚠️ REQUIRE APPROVAL: Confirm to Post.', isAlert: true }
+        ];
+
+        const App = () => {
+            const [time, setTime] = useState('');
+            const [budget, setBudget] = useState(1000);
+            
+            // UI States
+            const [activeFlowIndex, setActiveFlowIndex] = useState(-1);
+            const [isRunning, setIsRunning] = useState(false);
+            const [requiresApproval, setRequiresApproval] = useState(false);
+            const [chatInput, setChatInput] = useState('');
+            
+            // Random bar chart heights for visual effect
+            const [chartHeights, setChartHeights] = useState([20, 40, 30, 70, 50, 90, 60]);
+
+            // Agent States Array
+            const [agents, setAgents] = useState(AI_ROLES.map(r => ({
+                id: r.id, status: '[SLEEP]', dot: 'dot-gray', msg: 'Offline'
+            })));
+
+            const [chatLogs, setChatLogs] = useState([
+                { sysTime: 'SYS', agent: 'System', msg: 'Pang Game Company v1.1 OS Booted.', isSys: true }
+            ]);
+
+            const logsEndRef = useRef(null);
+
+            // Clock & Random Chart data
+            useEffect(() => {
+                const interval = setInterval(() => {
+                    const now = new Date();
+                    setTime(now.toLocaleTimeString('en-US', { hour12: false }) + ' AM');
+                }, 1000); // 1 sec tick for retro feel
+                
+                const chartInterval = setInterval(() => {
+                    if (isRunning) {
+                        setChartHeights(prev => prev.map(() => Math.floor(Math.random() * 80) + 10));
+                    }
+                }, 1500);
+
+                return () => { clearInterval(interval); clearInterval(chartInterval); }
+            }, [isRunning]);
+
+            // Scroll chat
+            useEffect(() => {
+                if (logsEndRef.current) logsEndRef.current.scrollIntoView({ behavior: "smooth" });
+            }, [chatLogs]);
+
+            // Core Logic Runner
+            useEffect(() => {
+                if (isRunning && activeFlowIndex < DEMO_FLOW.length) {
+                    const step = DEMO_FLOW[activeFlowIndex];
+                    if (step) {
+                        const timer = setTimeout(() => {
+                            // Update specific agent state
+                            setAgents(prev => prev.map(a => 
+                                a.id === step.agent 
+                                ? { ...a, status: step.status, dot: step.dot, msg: step.msg } 
+                                : a.status !== '[SLEEP]' && a.id !== step.agent 
+                                    ? { ...a, status: '[STANDBY]', dot: 'dot-gray' } 
+                                    : a
+                            ));
+
+                            // Push to Game Chat
+                            const now = new Date();
+                            const logTime = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+                            
+                            const foundRole = AI_ROLES.find(r => r.id === step.agent);
+                            setChatLogs(prev => [...prev, {
+                                sysTime: logTime,
+                                agent: foundRole ? foundRole.name : 'SYS',
+                                msg: step.msg,
+                                isAlert: step.isAlert
+                            }]);
+                            
+                            if (step.isAlert) {
+                                setRequiresApproval(true);
+                                setIsRunning(false);
+                            }
+
+                            setActiveFlowIndex(idx => idx + 1);
+                        }, activeFlowIndex === 0 ? 0 : DEMO_FLOW[activeFlowIndex].time - DEMO_FLOW[activeFlowIndex-1].time);
+                        return () => clearTimeout(timer);
+                    }
+                }
+            }, [isRunning, activeFlowIndex]);
+
+            const handleStart = () => {
+                if (isRunning) return;
+                setAgents(prev => prev.map(a => ({ ...a, status: '[STANDBY]', dot: 'dot-gray', msg: 'Waiting...' })));
+                
+                const now = new Date();
+                setChatLogs(prev => [...prev, {
+                    sysTime: `${now.getHours()}:${now.getMinutes()}`,
+                    agent: 'Admin',
+                    msg: '!run pipeline --force',
+                    isAdmin: true
+                }]);
+                
+                setActiveFlowIndex(0);
+                setRequiresApproval(false);
+                setIsRunning(true);
+            };
+
+            const handleApprove = () => {
+                setRequiresApproval(false);
+                setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'Admin', msg: '/approve (Confirmed delivery)', isAdmin: true }]);
+                
+                setAgents(prev => prev.map(a => a.id === 'guardian' ? { ...a, status: '[PASSED]', dot: 'dot-green' } : a));
+                
+                // Deduct random budget for effect
+                setBudget(b => b - Math.floor(Math.random() * 20 + 5));
+                
+                setTimeout(() => {
+                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'System', msg: 'Delivery confirmed. Awaiting next cycle.', isSys: true }]);
+                }, 1000);
+            };
+
+            const handleChatSubmit = (e) => {
+               if (e.key === 'Enter' && chatInput.trim()) {
+                   if (chatInput.trim() === '/approve' && requiresApproval) {
+                       handleApprove();
+                   } else {
+                       const now = new Date();
+                       setChatLogs(prev => [...prev, {
+                          sysTime: `${now.getHours()}:${now.getMinutes()}`,
+                          agent: 'Admin',
+                          msg: chatInput,
+                          isAdmin: true
+                       }]);
+                   }
+                   setChatInput('');
+               }
+            }
+
+            return (
+                <div className="flex flex-col h-full gap-5">
+                    
+                    {/* Header Top Strip: Kairosoft HUD */}
+                    <div className="flex justify-between items-end mb-2">
+                        <div className="flex items-baseline gap-4">
+                            <h1 className="font-pixel text-5xl font-bold tracking-widest text-[#fed7aa] drop-shadow-[2px_2px_0px_rgba(239,68,68,1)]">
+                                PANG GAME STUDIO
+                            </h1>
+                        </div>
+                        
+                        {/* Company Stats HUD */}
+                        <div className="flex gap-4">
+                            <div className="hud-box bg-green-900 border-green-300">
+                                💰 G: <span className="text-yellow-400">{budget.toLocaleString()}</span>
+                            </div>
+                            <div className="hud-box bg-blue-900 border-blue-300">
+                                📅 YEAR 1 <span className="text-gray-300 text-xl ml-2">{time}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Main Layout Grid */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 min-h-0">
+                        
+                        {/* LEFT: Team Status */}
+                        <div className="panel panel-blue col-span-1 lg:col-span-3 flex flex-col p-4 pt-6 min-h-0">
+                            <div className="panel-header text-neonBlue">TEAM STATUS</div>
+                            <div className="flex flex-col gap-3 overflow-y-auto pr-2 mb-4 flex-1">
+                                {['Core', 'Post', 'Reels'].map(deptName => (
+                                    <div key={deptName} className="mb-2 bg-[#0b1121] p-2 rounded border-2 border-slate-700 shadow-inner">
+                                        <div className="text-neonOrange font-pixel text-xl mb-2 tracking-widest border-b border-slate-700 pb-1">
+                                            {deptName === 'Post' ? '📝 POST DEPT' : deptName === 'Reels' ? '🎬 REELS DEPT' : '🏢 CORE DEPT'}
+                                        </div>
+                                        <div className="flex flex-col gap-2">
+                                            {AI_ROLES.filter(r => r.dept === deptName).map((role, idx) => {
+                                                const agentData = agents.find(a => a.id === role.id) || { status: '[SLEEP]', activity: 'Waiting for tasks...' };
+                                                return (
+                                                    <div key={idx} className={`flex items-center justify-between p-2 rounded border border-gray-700 bg-gray-900/80 transition-all ${agentData.status !== '[SLEEP]' ? 'border-gray-500 shadow-[0_0_10px_rgba(255,255,255,0.1)]' : 'opacity-70'}`}>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-10 h-10 bg-gray-800 border-[3px] border-gray-600 rounded overflow-hidden shadow-[inset_2px_2px_0px_rgba(255,255,255,0.2)] ${agentData.status !== '[SLEEP]' ? 'anim-work border-neonOrange' : ''}`}>
+                                                                <img src={role.image + "?v=2"} alt={role.name} className="w-full h-full object-cover rendering-pixelated" style={{imageRendering: 'pixelated'}} />
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[12px] font-bold text-[#fed7aa]">{role.name}</span>
+                                                                <span className="text-[10px] text-gray-400 font-pixel tracking-wider">{agentData.status}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className={`status-dot ${agentData.dot}`}></div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            {/* Action Button */}
+                            <button 
+                                onClick={handleStart}
+                                disabled={isRunning || requiresApproval}
+                                className={`mt-auto w-full py-4 rounded font-pixel text-xl tracking-widest border-4 transition-all ${isRunning || requiresApproval ? 'border-[#334155] text-gray-400 bg-gray-800 outline outline-2 outline-black' : 'border-[#10b981] text-black bg-[#34d399] hover:bg-[#10b981] outline outline-2 outline-black shadow-[inset_2px_2px_0px_rgba(255,255,255,0.4)]'}`}>
+                                {requiresApproval ? 'WAITING APPROVAL...' : '> START PIPELINE <'}
+                            </button>
+                        </div>
+
+                        {/* CENTER: Command Center & Briefing Room */}
+                        <div className="col-span-1 lg:col-span-6 flex flex-col gap-5 min-h-0">
+                            
+                            {/* Top: Central Viz */}
+                            <div className="panel panel-orange flex-1 p-4 pt-8 flex flex-col justify-center items-center relative overflow-hidden bg-black/40">
+                                <div className="panel-header text-neonOrange">COMMAND CENTER</div>
+                                
+                                {/* Pseudo Graphic Representation */}
+                                <div className="w-full h-full border border-gray-800 bg-[#0f172a]/60 rounded relative flex flex-col items-center justify-center">
+                                    <div className="font-pixel text-neonBlue text-xl mb-6 border border-neonBlue px-4 py-1 bg-neonBlue/10">DATA FUNNEL</div>
+                                    
+                                    {/* Funnel CSS Art */}
+                                    <div className="flex flex-col items-center justify-center w-full z-10">
+                                        <div className="w-64 h-8 bg-blue-500/80 border border-blue-400 rounded-t flex justify-center items-center mb-1 shadow-[0_0_10px_rgba(59,130,246,0.5)]">
+                                            <span className="font-pixel text-xs text-white">RAW RSS FEEDS (100)</span>
+                                        </div>
+                                        <div className="w-48 h-8 bg-teal-500/80 border border-teal-400 flex justify-center items-center mb-1 shadow-[0_0_10px_rgba(20,184,166,0.5)]">
+                                            <span className="font-pixel text-xs text-white">FILTERED NEWS (10)</span>
+                                        </div>
+                                        <div className="w-32 h-8 bg-purple-500/80 border border-purple-400 flex justify-center items-center mb-1 shadow-[0_0_10px_rgba(168,85,247,0.5)]">
+                                            <span className="font-pixel text-xs text-white">HASH CHECKED (2)</span>
+                                        </div>
+                                        <div className="w-16 h-12 bg-orange-500/90 border border-orange-400 rounded-b flex justify-center items-center shadow-[0_0_15px_rgba(249,115,22,0.8)]">
+                                            <i className="fa-solid fa-play text-white"></i>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Desk Art */}
+                                    <div className="w-72 h-4 border-2 border-gray-600 bg-gray-800 rounded mt-4 flex px-4 gap-2 items-center rotate-x-12 perspective-1000">
+                                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                        <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                        {isRunning && <span className="font-pixel text-[10px] text-green-400 ml-auto animate-pulse">PROCESSING...</span>}
+                                    </div>
+                                    <div className="w-64 h-8 border-x-2 border-gray-600 bg-gray-700"></div>
+
+                                    {/* Background Grid Lines absolute */}
+                                    <div className="absolute inset-0 bg-[linear-gradient(rgba(16,185,129,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.05)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none"></div>
+                                </div>
+                            </div>
+                            
+                            {/* Bottom: Pixel Office + Briefing Room */}
+                            <div className="flex-[0.7] grid grid-cols-2 gap-5 min-h-0">
+
+                            {/* Pixel Office */}
+                            <div className="panel panel-orange flex flex-col p-4 pt-6 min-h-0">
+                                <div className="panel-header text-neonOrange">PIXEL OFFICE</div>
+                                <div className="flex-1 pixel-floor border border-gray-700 rounded relative overflow-hidden">
+                                    {/* Wall */}
+                                    <div className="absolute top-0 left-0 right-0 h-[40%] bg-gradient-to-b from-[#1a2744] to-[#0f172a] border-b-4 border-[#8B5E3C]">
+                                        {/* Window */}
+                                        <div className="absolute top-3 left-[15%] w-16 h-12 border-2 border-[#4a3828] bg-gradient-to-b from-[#1e3a5f] to-[#0c1f33] rounded-sm">
+                                            <div className="absolute inset-0 border border-[#4a3828] m-1 opacity-50"></div>
+                                            <div className="absolute top-1 left-1 w-2 h-2 rounded-full bg-yellow-200/30"></div>
+                                        </div>
+                                        <div className="absolute top-3 right-[15%] w-16 h-12 border-2 border-[#4a3828] bg-gradient-to-b from-[#1e3a5f] to-[#0c1f33] rounded-sm">
+                                            <div className="absolute inset-0 border border-[#4a3828] m-1 opacity-50"></div>
+                                        </div>
+                                        {/* Company Sign */}
+                                        <div className="absolute top-2 left-1/2 -translate-x-1/2 font-pixel text-base text-neonOrange bg-[#1c1512] px-3 py-1 border-2 border-neonOrange/50 rounded-sm tracking-widest" style={{ textShadow: '0 0 8px rgba(249,115,22,0.6)' }}>
+                                            PANG GAME CO.
+                                        </div>
+                                    </div>
+
+                                    {/* Employees */}
+                                    {(() => {
+                                        const employees = [
+                                            { name: 'Scout', color: '#10b981', x: '8%', y: '52%', agentId: 'scout', emoji: '📡', particleColor: '#10b981' },
+                                            { name: 'Gemini', color: '#a855f7', x: '30%', y: '52%', agentId: 'brain', emoji: '🧠', particleColor: '#a855f7' },
+                                            { name: 'Anti', color: '#f97316', x: '54%', y: '52%', agentId: 'anti', emoji: '🎨', particleColor: '#f97316' },
+                                            { name: 'Post', color: '#3b82f6', x: '78%', y: '52%', agentId: 'publisher', emoji: '📤', particleColor: '#3b82f6' },
+                                        ];
+                                        return employees.map((emp, i) => {
+                                            const agentState = agents.find(a => a.id === emp.agentId);
+                                            const isActive = agentState && agentState.status !== '[SLEEP]' && agentState.status !== '[STANDBY]';
+                                            return (
+                                                <div key={i} className={isActive ? 'typing' : 'idle'} style={{ position: 'absolute', left: emp.x, top: emp.y }}>
+                                                    {/* Emoji Bubble */}
+                                                    {isActive && (
+                                                        <div className="emoji-bubble">{emp.emoji}</div>
+                                                    )}
+                                                    {/* Character */}
+                                                    <div className="pixel-char" style={{ left: '18px' }}>
+                                                        {/* Head */}
+                                                        <div style={{ width: 14, height: 14, background: '#fcd9b6', borderRadius: 2, margin: '0 auto', border: '1px solid #d4a574', position: 'relative' }}>
+                                                            {/* Hair */}
+                                                            <div style={{ position: 'absolute', top: -3, left: -1, right: -1, height: 6, background: emp.color, borderRadius: '3px 3px 0 0' }}></div>
+                                                            {/* Eyes */}
+                                                            <div style={{ position: 'absolute', top: 7, left: 2, width: 3, height: 2, background: '#333', borderRadius: 1 }}></div>
+                                                            <div style={{ position: 'absolute', top: 7, right: 2, width: 3, height: 2, background: '#333', borderRadius: 1 }}></div>
+                                                        </div>
+                                                        {/* Body */}
+                                                        <div style={{ width: 16, height: 12, background: emp.color, margin: '0 auto', borderRadius: '0 0 3px 3px', opacity: 0.9 }}></div>
+                                                    </div>
+                                                    {/* Desk + Monitor */}
+                                                    <div className="pixel-desk">
+                                                        <div className={`pixel-monitor ${isActive ? 'on' : ''}`}></div>
+                                                        {/* Particles from monitor */}
+                                                        {isActive && [0,1,2].map(p => (
+                                                            <div key={p} className="particle" style={{
+                                                                background: emp.particleColor,
+                                                                boxShadow: `0 0 4px ${emp.particleColor}`,
+                                                                top: '-18px',
+                                                                left: `${20 + p * 8}px`,
+                                                                animationDelay: `${p * 0.4}s`
+                                                            }}></div>
+                                                        ))}
+                                                    </div>
+                                                    {/* Name Tag */}
+                                                    <div className="font-pixel text-sm text-center mt-2" style={{ color: emp.color, textShadow: `0 0 6px ${emp.color}` }}>
+                                                        {emp.name}
+                                                    </div>
+                                                </div>
+                                            );
+                                        });
+                                    })()}
+
+                                    {/* Pang Mascot in corner */}
+                                    <div className="absolute bottom-2 right-2 w-8 h-8 bg-pink-400/20 border border-pink-400/40 rounded-full flex items-center justify-center" title="Nong Pang is watching~">
+                                        <span className="text-sm">🩷</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Briefing Room */}
+                            <div className="panel panel-orange flex flex-col p-4 pt-6 min-h-0">
+                                <div className="panel-header text-neonOrange">BRIEFING ROOM (CHAT)</div>
+                                
+                                <div className="flex-1 bg-black/80 border border-gray-700 rounded flex flex-col overflow-hidden font-game shadow-inner">
+                                    <div className="flex-1 overflow-y-auto p-3 text-[13px] whitespace-pre-wrap">
+                                        {chatLogs.map((log, i) => {
+                                            let nameColor = 'text-gray-300';
+                                            let msgColor = 'text-gray-100';
+                                            
+                                            if (log.isSys) { nameColor = 'text-yellow-400'; msgColor = 'text-yellow-200'; }
+                                            else if (log.isAdmin) { nameColor = 'text-red-400'; msgColor = 'text-red-200'; }
+                                            else if (log.agent === 'Router (CEO)') nameColor = 'text-blue-400';
+                                            else if (log.agent === 'Researcher') nameColor = 'text-teal-400';
+                                            else if (log.agent === 'Executor') nameColor = 'text-purple-400';
+                                            else if (log.agent === 'Summarizer') nameColor = 'text-indigo-400';
+                                            else if (log.agent === 'Guardian') nameColor = 'text-orange-400';
+                                            
+                                            if (log.isAlert) msgColor = 'text-red-400 font-bold';
+
+                                            return (
+                                                <div key={i} className={`mb-1 ${log.isAlert ? 'bg-red-900/30' : ''}`}>
+                                                    <span className="text-gray-500 text-xs">[{log.sysTime}]</span>{' '}
+                                                    <span className={`font-bold ${nameColor}`}>[{log.agent}]</span>
+                                                    <span className={msgColor}>: {log.msg}</span>
+                                                </div>
+                                            );
+                                        })}
+                                        <div ref={logsEndRef} />
+                                    </div>
+                                    
+                                    {/* Input */}
+                                    <div className="bg-gray-900 border-t border-gray-700 p-2 flex gap-2">
+                                        <input 
+                                            type="text" 
+                                            className="bg-black/50 border border-gray-700 flex-1 py-1 px-2 text-sm text-white outline-none rounded font-pixel" 
+                                            placeholder={requiresApproval ? "Type /approve to continue" : "> _"}
+                                            value={chatInput}
+                                            onChange={(e) => setChatInput(e.target.value)}
+                                            onKeyDown={handleChatSubmit}
+                                        />
+                                        {requiresApproval && (
+                                            <button onClick={handleApprove} className="font-pixel text-sm bg-orange-600 hover:bg-orange-500 text-black px-3 py-1 rounded">
+                                                /APPROVE
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            </div> {/* end grid Pixel Office + Briefing */}
+                        </div>
+
+                        {/* RIGHT: Plugins & Logs */}
+                        <div className="col-span-1 lg:col-span-3 flex flex-col gap-5 min-h-0">
+                            
+                            {/* Budget Tracker */}
+                            <div className="panel panel-green flex-1 flex flex-col p-4 pt-6">
+                                <div className="panel-header text-neonGreen">API BUDGET</div>
+                                <div className="flex flex-col h-full bg-black/40 border border-gray-800 p-3 rounded">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <span className="font-bold text-gray-400 text-xs">MONTHLY LIMIT</span>
+                                        <span className={`font-pixel text-2xl drop-shadow-[0_0_5px_currentColor] ${budget < 500 ? 'text-neonRed' : 'text-neonGreen'}`}>
+                                            ฿{budget}
+                                        </span>
+                                    </div>
+                                    
+                                    {/* Bar Chart */}
+                                    <div className="mt-auto h-24 flex items-end justify-between gap-1 px-2">
+                                        {chartHeights.map((h, i) => (
+                                            <div key={i} className="w-full bg-blue-500/80 bar rounded-t" style={{height: `${h}%`}}></div>
+                                        ))}
+                                    </div>
+                                    <div className="border-t border-gray-700 mt-1 pt-1 flex justify-between text-[10px] text-gray-500">
+                                        <span>MO</span><span>TU</span><span>WE</span><span>TH</span><span>FR</span><span>SA</span><span>SU</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Guardian Settings */}
+                            <div className="panel panel-green flex-1 flex flex-col p-4 pt-6">
+                                <div className="panel-header text-neonGreen">GUARDIAN LOG</div>
+                                <div className="flex-1 bg-gray-900 border border-gray-700 rounded p-3 flex flex-col gap-2 relative overflow-hidden">
+                                     <div className="flex items-center gap-3 mb-2">
+                                         <i className="fa-solid fa-shield text-orange-400 text-2xl drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]"></i>
+                                         <div>
+                                            <div className="text-xs font-bold text-gray-300">TOKEN SHIELD</div>
+                                            <div className="text-[10px] text-gray-500">gemini-2.0-flash</div>
+                                         </div>
+                                     </div>
+                                     <div className="flex items-center justify-between bg-black/50 p-2 rounded border border-gray-800">
+                                         <span className="text-[10px] text-gray-400">maxOutputTokens</span>
+                                         <span className="font-pixel text-neonGreen">600</span>
+                                     </div>
+                                     <div className="flex items-center justify-between bg-black/50 p-2 rounded border border-gray-800">
+                                         <span className="text-[10px] text-gray-400">Hash Match</span>
+                                         <span className="font-pixel text-blue-400">PASSED</span>
+                                     </div>
+                                     {requiresApproval && (
+                                         <div className="absolute inset-0 bg-red-900/40 flex items-center justify-center font-pixel text-red-400 tracking-widest animate-pulse border-2 border-red-500">
+                                            LOCKED!
+                                         </div>
+                                     )}
+                                </div>
+                            </div>
+                            
+                            {/* Output Connector */}
+                            <div className="panel panel-green flex-[0.5] p-4 pt-6 flex items-center gap-4 bg-black/50">
+                                <div className="panel-header text-neonGreen">OUTPUT PIPELINE</div>
+                                <div className="text-4xl text-gray-500"><i className="fa-brands fa-facebook hover:text-blue-500 transition-colors cursor-pointer"></i></div>
+                                <div className="text-4xl text-gray-500"><i className="fa-brands fa-instagram hover:text-pink-500 transition-colors cursor-pointer"></i></div>
+                                <div className="text-4xl text-gray-500"><i className="fa-brands fa-telegram hover:text-blue-400 transition-colors cursor-pointer"></i></div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

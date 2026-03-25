@@ -1,0 +1,102 @@
+{
+  "name": "AI Content Factory",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "id": "1",
+      "name": "The Router (Schedule Trigger)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [ 0, 0 ]
+    },
+    {
+      "parameters": {
+        "command": "bun run \"d:/peerapong/P/Code For P/ai-content-factory/scripts/fetch_news.ts\""
+      },
+      "id": "2",
+      "name": "The Researcher (Fetch News)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [ 200, 0 ]
+    },
+    {
+      "parameters": {
+        "command": "=bun run \"d:/peerapong/P/Code For P/ai-content-factory/scripts/process_content.ts\" '{{ $json.stdout }}'"
+      },
+      "id": "3",
+      "name": "The Executor & Guardian (Prepare Prompt)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [ 400, 0 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={{ $env.GEMINI_API_KEY }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "contents", "value": "={{ $json.stdout.payload.contents }}" },
+            { "name": "generationConfig", "value": "={{ $json.stdout.apiConfig.generationConfig }}" },
+            { "name": "safetySettings", "value": "={{ $json.stdout.apiConfig.safetySettings }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4",
+      "name": "Gemini API (Generate Script)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 600, 0 ]
+    },
+    {
+      "parameters": {
+        "resume": "webhook"
+      },
+      "id": "5",
+      "name": "Wait (Approval)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [ 800, 0 ]
+    }
+  ],
+  "connections": {
+    "The Router (Schedule Trigger)": {
+      "main": [
+        [
+          { "node": "The Researcher (Fetch News)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "The Researcher (Fetch News)": {
+      "main": [
+        [
+          { "node": "The Executor & Guardian (Prepare Prompt)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "The Executor & Guardian (Prepare Prompt)": {
+      "main": [
+        [
+          { "node": "Gemini API (Generate Script)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Gemini API (Generate Script)": {
+      "main": [
+        [
+          { "node": "Wait (Approval)", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  }
+}

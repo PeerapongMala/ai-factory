@@ -1,0 +1,83 @@
+name: Pang Game - Static Post Pipeline
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # Every 30 minutes, 24/7
+  workflow_dispatch: # Manual trigger button
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Step 1 - Fetch News (Researcher)
+        id: fetch
+        run: |
+          result=$(bun run scripts/fetch_news.ts 2>&1)
+          echo "$result"
+          echo "$result" > /tmp/step1.json
+
+          # Check if we got new news
+          status=$(echo "$result" | bun -e "const d=JSON.parse(await Bun.stdin.text()); console.log(d.status)")
+          if [ "$status" = "FAILED" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "No new news. Skipping pipeline."
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+      - name: Step 2 - Generate Content (Executor)
+        if: steps.fetch.outputs.skip == 'false'
+        run: |
+          bun run scripts/process_content.ts /tmp/step1.json > /tmp/step2.json 2>&1
+          cat /tmp/step2.json
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+      - name: Step 3 - Render Static Image (Graphic)
+        if: steps.fetch.outputs.skip == 'false'
+        run: |
+          bun run scripts/post_dept/render_static.ts /tmp/step2.json > /tmp/step3.json 2>&1
+          cat /tmp/step3.json
+        env:
+          CREATOMATE_API_KEY: ${{ secrets.CREATOMATE_API_KEY }}
+          CREATOMATE_STATIC_TEMPLATE_ID: ${{ secrets.CREATOMATE_STATIC_TEMPLATE_ID }}
+
+      - name: Step 4 - Telegram Approval (Guardian)
+        if: steps.fetch.outputs.skip == 'false'
+        run: |
+          bun run scripts/request_approval.ts /tmp/step3.json > /tmp/step4.json 2>&1
+          cat /tmp/step4.json
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Step 5 - Post to Social (Distributor)
+        if: steps.fetch.outputs.skip == 'false'
+        run: |
+          bun run scripts/post_dept/social_post.ts /tmp/step4.json 2>&1
+        env:
+          AYRSHARE_API_KEY: ${{ secrets.AYRSHARE_API_KEY }}
+
+      - name: Update processed hashes
+        if: steps.fetch.outputs.skip == 'false'
+        run: |
+          git config user.name "Pang Game Bot"
+          git config user.email "bot@panggame.com"
+          git add logs/processed_hashes.json
+          git diff --staged --quiet || git commit -m "update: processed hashes [bot]"
+          git push
