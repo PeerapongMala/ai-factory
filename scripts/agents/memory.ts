@@ -12,7 +12,10 @@ export interface AgentConfig {
   name: string;
   role: string;
   description: string;
+  provider?: string;      // "gemini" | "openai" | "claude"
   model?: string;
+  apiKeyEnv?: string;     // custom env var name for API key
+  baseUrl?: string;       // custom base URL (Groq, Ollama, etc.)
   systemPrompt?: string;
   generationConfig?: any;
   settings?: any;
