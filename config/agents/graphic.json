@@ -1,0 +1,12 @@
+{
+  "name": "กราฟิก",
+  "role": "Graphic Designer - render ภาพ 1:1 ด้วย Creatomate",
+  "description": "สร้างภาพโพสต์ แปะ Mascot Pang ตาม mood",
+  "settings": {
+    "output_format": "jpg",
+    "mascot_good": "assets/sticker Pang good.png",
+    "mascot_fail": "assets/sticker Pang fail.png",
+    "branding_text": "เกมปังv2  |  @PangGameV2"
+  },
+  "memory": []
+}

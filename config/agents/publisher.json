@@ -1,0 +1,10 @@
+{
+  "name": "โพสต์",
+  "role": "Publisher - โพสต์ลง Facebook + Instagram",
+  "description": "โพสต์ content ที่ผ่านการตรวจสอบแล้วลง social media",
+  "settings": {
+    "platforms": ["facebook", "instagram"],
+    "autoHashtag": true
+  },
+  "memory": []
+}

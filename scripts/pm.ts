@@ -4,6 +4,7 @@
  * พนักงานทุกคนรายงานตรงกับ PM เท่านั้น ไม่ต้องรู้จักกัน
  */
 import { $ } from "bun";
+import { train, listMemory, listAgents, loadAgent } from "./agents/memory";
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -152,4 +153,94 @@ async function pmRun() {
   await pmReport(`✅ <b>PM Report - สำเร็จ!</b>\n\n📰 ข่าวที่โพสต์:\n• ${titles}\n\n📱 Platforms: Facebook + Instagram\n🕐 เวลา: ${ts()}`);
 }
 
-pmRun();
+// ===== PM เทรนพนักงาน =====
+// ใช้: bun run scripts/pm.ts train นักเขียน "caption ยาวไป ให้สั้นลง"
+// ใช้: bun run scripts/pm.ts memory นักเขียน
+// ใช้: bun run scripts/pm.ts list
+async function pmCommand() {
+  const args = process.argv.slice(2);
+  const command = args[0];
+
+  if (!command || command === "run") {
+    // Default: run pipeline
+    await pmRun();
+    return;
+  }
+
+  const AGENT_MAP: Record<string, string> = {
+    "pm": "pm.json",
+    "นักข่าว": "reporter.json",
+    "นักเขียน": "writer.json",
+    "ตรวจสอบ": "guardian.json",
+    "กราฟิก": "graphic.json",
+    "โพสต์": "publisher.json"
+  };
+
+  if (command === "train") {
+    const agentName = args[1];
+    const feedback = args[2];
+
+    if (!agentName || !feedback) {
+      console.log("ใช้: bun run scripts/pm.ts train <ชื่อพนักงาน> \"feedback\"");
+      console.log("พนักงาน:", Object.keys(AGENT_MAP).join(", "));
+      return;
+    }
+
+    const file = AGENT_MAP[agentName];
+    if (!file) {
+      console.log(`ไม่รู้จักพนักงานชื่อ "${agentName}"`);
+      console.log("พนักงาน:", Object.keys(AGENT_MAP).join(", "));
+      return;
+    }
+
+    const updated = train(file, feedback, "แอดมิน");
+    log("PM", `เทรน ${agentName} สำเร็จ! memory ทั้งหมด ${updated.memory.length} รายการ`);
+    log("PM", `feedback: "${feedback}"`);
+    return;
+  }
+
+  if (command === "memory") {
+    const agentName = args[1];
+    if (!agentName) {
+      // แสดง memory ทุกคน
+      for (const [name, file] of Object.entries(AGENT_MAP)) {
+        const memories = listMemory(file);
+        console.log(`\n[${name}] - ${memories.length} ความจำ`);
+        memories.forEach(m => console.log(`  ${m.date.slice(0,10)} [${m.from}] ${m.feedback}`));
+      }
+      return;
+    }
+
+    const file = AGENT_MAP[agentName];
+    if (!file) {
+      console.log(`ไม่รู้จักพนักงานชื่อ "${agentName}"`);
+      return;
+    }
+
+    const memories = listMemory(file);
+    console.log(`\n[${agentName}] - ${memories.length} ความจำ`);
+    if (memories.length === 0) {
+      console.log("  (ยังไม่มี feedback)");
+    } else {
+      memories.forEach(m => console.log(`  ${m.date.slice(0,10)} [${m.from}] ${m.feedback}`));
+    }
+    return;
+  }
+
+  if (command === "list") {
+    console.log("\n=== พนักงาน Pang Game Company ===\n");
+    for (const [name, file] of Object.entries(AGENT_MAP)) {
+      const agent = loadAgent(file);
+      console.log(`${name} (${agent.role}) - memory: ${agent.memory.length}`);
+    }
+    return;
+  }
+
+  console.log("คำสั่ง PM:");
+  console.log("  bun run scripts/pm.ts              → รัน pipeline");
+  console.log("  bun run scripts/pm.ts train <ชื่อ> \"feedback\"  → เทรนพนักงาน");
+  console.log("  bun run scripts/pm.ts memory [ชื่อ]  → ดู memory");
+  console.log("  bun run scripts/pm.ts list           → ดูพนักงานทั้งหมด");
+}
+
+pmCommand();

@@ -1,10 +1,11 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { loadAgent, getMemoryPrompt } from "./agents/memory";
 
-// 1. Load Config (The Guardian)
-const CONFIG_PATH = join(__dirname, "../config/gemini_config.json");
-const config = JSON.parse(readFileSync(CONFIG_PATH, "utf8"));
+// 1. Load Agent Config (นักเขียน)
+const agent = loadAgent("writer.json");
+const memoryPrompt = getMemoryPrompt("writer.json");
 
 // 2. Initialize Gemini (The Executor)
 const apiKey = process.env.GEMINI_API_KEY;
@@ -34,12 +35,12 @@ async function callWithRetry(fn: () => Promise<any>): Promise<any> {
 }
 
 const model = genAI.getGenerativeModel({
-  model: "gemini-2.0-flash",
-  systemInstruction: config.systemInstruction,
-  generationConfig: {
-    maxOutputTokens: config.maxOutputTokens,
-    temperature: config.temperature,
-    responseMimeType: "application/json" // Enforce strictly JSON structured output
+  model: agent.model || "gemini-2.0-flash",
+  systemInstruction: (agent.systemPrompt || "") + memoryPrompt,
+  generationConfig: agent.generationConfig || {
+    maxOutputTokens: 1024,
+    temperature: 0.85,
+    responseMimeType: "application/json"
   }
 });
 
