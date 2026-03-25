@@ -25,59 +25,17 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Step 1 - Fetch News (Researcher)
-        id: fetch
-        run: |
-          result=$(bun run scripts/fetch_news.ts 2>&1)
-          echo "$result"
-          echo "$result" > /tmp/step1.json
-
-          # Check if we got new news
-          status=$(echo "$result" | bun -e "const d=JSON.parse(await Bun.stdin.text()); console.log(d.status)")
-          if [ "$status" = "FAILED" ]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-            echo "No new news. Skipping pipeline."
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-          fi
+      - name: PM - Run Pipeline
+        run: bun run scripts/pm.ts
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-
-      - name: Step 2 - Generate Content (Executor)
-        id: executor
-        if: steps.fetch.outputs.skip == 'false'
-        run: |
-          bun run scripts/process_content.ts /tmp/step1.json > /tmp/step2.json 2>/dev/null
-          cat /tmp/step2.json
-
-          status=$(cat /tmp/step2.json | bun -e "const d=JSON.parse(await Bun.stdin.text()); console.log(d.status)")
-          if [ "$status" != "SUCCESS" ]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-            echo "Executor failed or skipped. Stopping pipeline."
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-          fi
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-
-      - name: Step 3 - Render Static Image (Graphic)
-        if: steps.fetch.outputs.skip == 'false' && steps.executor.outputs.skip == 'false'
-        run: |
-          bun run scripts/post_dept/render_static.ts /tmp/step2.json > /tmp/step3.json 2>/dev/null
-          cat /tmp/step3.json
-        env:
           CREATOMATE_API_KEY: ${{ secrets.CREATOMATE_API_KEY }}
           CREATOMATE_STATIC_TEMPLATE_ID: ${{ secrets.CREATOMATE_STATIC_TEMPLATE_ID }}
-
-      - name: Step 4 - Post to Social (Distributor)
-        if: steps.fetch.outputs.skip == 'false' && steps.executor.outputs.skip == 'false'
-        run: |
-          bun run scripts/post_dept/social_post.ts /tmp/step3.json 2>/dev/null
-        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           AYRSHARE_API_KEY: ${{ secrets.AYRSHARE_API_KEY }}
 
       - name: Update processed hashes
-        if: steps.fetch.outputs.skip == 'false' && steps.executor.outputs.skip == 'false'
         run: |
           git config user.name "Pang Game Bot"
           git config user.email "bot@panggame.com"
