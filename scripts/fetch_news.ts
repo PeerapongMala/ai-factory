@@ -25,9 +25,13 @@ interface ResearcherOutput {
 const HASH_LOG_PATH = join(__dirname, "../logs/processed_hashes.json");
 
 const NEWS_SOURCES = [
-  { name: 'IGN', url: 'https://feeds.ign.com/ign/news' }, // Foreign news for translation!
+  // เว็บไทย
   { name: 'GamingDose', url: 'https://www.gamingdose.com/feed/' },
-  { name: 'Online Station', url: 'https://www.online-station.net/feed/' }
+  { name: '4Gamers Thailand', url: 'https://www.4gamers.co.th/rss' },
+  { name: 'COMPGAMER', url: 'https://compgamer.com/feed/' },
+  // เว็บนอก (เร็ว + exclusive)
+  { name: 'VGC', url: 'https://www.videogameschronicle.com/feed' },
+  { name: 'Wccftech', url: 'https://wccftech.com/feed/' }
 ];
 
 function getProcessedHashes(): Set<string> {
