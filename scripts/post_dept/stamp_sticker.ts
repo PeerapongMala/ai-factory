@@ -1,8 +1,8 @@
 /**
  * สร้างรูปโพสต์สไตล์เพจเกมปัง
- * - รูปข่าวเป็น background
- * - ข้อความหัวข้อข่าวตัวใหญ่ (ล่างรูป)
- * - สติกเกอร์น้องปัง มุมขวาล่าง
+ * - รูปข่าว 80% บน
+ * - แถบดำทึบ 20% ล่าง ใส่สติกเกอร์ + headline
+ * - สติกเกอร์น้องปัง ซ้ายล่าง
  * - good = ข่าวดี/ดีล | fail = ข่าวแย่/เลื่อน/nerf
  */
 import sharp from "sharp";
@@ -15,42 +15,31 @@ const OUTPUT_DIR = join(__dirname, "../../tmp");
 
 if (!existsSync(OUTPUT_DIR)) mkdirSync(OUTPUT_DIR, { recursive: true });
 
-function createTextSvg(text: string, width: number): Buffer {
-  // ตัดข้อความยาวเกินให้เป็นหลายบรรทัด (ไม่เกิน 3 บรรทัด)
-  const maxCharsPerLine = 20;
-  const words = text.split('');
-  const lines: string[] = [];
-  let currentLine = '';
+async function createTextBuffer(text: string, maxWidth: number): Promise<Buffer> {
+  const trimmed = text.length > 50 ? text.slice(0, 47) + "..." : text;
+  const escaped = trimmed
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 
-  for (const char of words) {
-    if (currentLine.length >= maxCharsPerLine && char === ' ') {
-      lines.push(currentLine.trim());
-      currentLine = '';
-      if (lines.length >= 3) break;
-    } else {
-      currentLine += char;
-    }
+  try {
+    return await sharp({
+      text: {
+        text: `<span foreground="white" font_desc="Sans Bold 40">${escaped}</span>`,
+        rgba: true,
+        width: maxWidth,
+        align: "left",
+      }
+    }).png().toBuffer();
+  } catch {
+    // Fallback SVG
+    const svg = `<svg width="${maxWidth}" height="80" xmlns="http://www.w3.org/2000/svg">
+      <text x="0" y="50" font-family="sans-serif" font-size="40" font-weight="bold"
+        fill="white">${escaped}</text>
+    </svg>`;
+    return Buffer.from(svg);
   }
-  if (currentLine.trim() && lines.length < 3) lines.push(currentLine.trim());
-
-  const fontSize = 54;
-  const lineHeight = fontSize + 16;
-  const textBlockHeight = lines.length * lineHeight + 40;
-  const yStart = 20 + fontSize;
-
-  const textLines = lines.map((line, i) => {
-    const escaped = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    return `<text x="${width / 2}" y="${yStart + i * lineHeight}"
-      font-family="sans-serif" font-size="${fontSize}" font-weight="bold"
-      fill="white" text-anchor="middle"
-      stroke="black" stroke-width="3" paint-order="stroke">${escaped}</text>`;
-  }).join('\n');
-
-  const svg = `<svg width="${width}" height="${textBlockHeight}" xmlns="http://www.w3.org/2000/svg">
-    ${textLines}
-  </svg>`;
-
-  return Buffer.from(svg);
 }
 
 export async function stampSticker(
@@ -60,51 +49,58 @@ export async function stampSticker(
   filename: string
 ): Promise<string> {
   const SIZE = 1080;
+  const IMAGE_H = Math.round(SIZE * 0.80);  // 864px รูปข่าว
+  const BAR_H = SIZE - IMAGE_H;              // 216px แถบดำ
 
   // 1. ดาวน์โหลดรูปข่าว
   const res = await fetch(imageUrl);
   if (!res.ok) throw new Error(`Download image failed: ${res.status}`);
   const imageBuffer = Buffer.from(await res.arrayBuffer());
 
-  // 2. Resize รูปเป็น 1080x1080
-  const base = await sharp(imageBuffer)
-    .resize(SIZE, SIZE, { fit: "cover" })
+  // 2. Resize รูปข่าว → 1080 x 864 (80% บน)
+  const photo = await sharp(imageBuffer)
+    .resize(SIZE, IMAGE_H, { fit: "cover" })
     .toBuffer();
 
-  // 3. สร้าง gradient overlay ด้านล่าง (ให้อ่าน text ง่าย)
-  const gradientSvg = Buffer.from(`<svg width="${SIZE}" height="${SIZE}" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="black" stop-opacity="0"/>
-        <stop offset="50%" stop-color="black" stop-opacity="0"/>
-        <stop offset="100%" stop-color="black" stop-opacity="0.85"/>
-      </linearGradient>
-    </defs>
-    <rect width="${SIZE}" height="${SIZE}" fill="url(#g)"/>
-  </svg>`);
+  // 3. สร้างแถบดำทึบ 1080 x 216 (20% ล่าง)
+  const blackBar = await sharp({
+    create: { width: SIZE, height: BAR_H, channels: 3, background: { r: 0, g: 0, b: 0 } }
+  }).jpeg().toBuffer();
 
-  // 4. สร้าง text overlay
-  const textSvg = createTextSvg(headline, SIZE);
-  const textMeta = await sharp(textSvg).metadata();
-  const textHeight = textMeta.height || 200;
-
-  // 5. Resize สติกเกอร์
-  const stickerSize = 280;
+  // 4. Resize สติกเกอร์น้องปัง ให้พอดีแถบดำ
+  const stickerSize = BAR_H - 20;  // 196px
   const stickerPath = mood === "good" ? STICKER_GOOD : STICKER_FAIL;
   const sticker = await sharp(stickerPath)
     .resize(stickerSize, stickerSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .toBuffer();
 
-  // 6. Composite ทุกอย่างรวมกัน
+  // 5. สร้าง text headline (Pango — รองรับภาษาไทย)
+  const textLeft = stickerSize + 30;          // ขวาสติกเกอร์
+  const textMaxWidth = SIZE - textLeft - 20;  // เหลือที่ให้ text
+  const textBuf = await createTextBuffer(headline, textMaxWidth);
+  const textMeta = await sharp(textBuf).metadata();
+  const textH = textMeta.height || 60;
+
+  // 6. ต่อรูป + แถบดำ เป็น 1080x1080 แล้ว composite สติกเกอร์ + text
   const outputPath = join(OUTPUT_DIR, filename);
-  await sharp(base)
+
+  // สร้าง canvas 1080x1080: รูปบน + ดำล่าง
+  const canvas = await sharp({
+    create: { width: SIZE, height: SIZE, channels: 3, background: { r: 0, g: 0, b: 0 } }
+  })
     .composite([
-      // Gradient overlay
-      { input: gradientSvg, left: 0, top: 0 },
-      // ข้อความหัวข้อข่าว (ล่างสุด เหนือสติกเกอร์)
-      { input: textSvg, left: 0, top: SIZE - textHeight - stickerSize - 20 },
-      // สติกเกอร์น้องปัง (มุมซ้ายล่าง)
-      { input: sticker, left: 10, top: SIZE - stickerSize - 10 },
+      { input: photo, left: 0, top: 0 },
+    ])
+    .jpeg()
+    .toBuffer();
+
+  // composite สติกเกอร์ + text ลงบนแถบดำ
+  await sharp(canvas)
+    .composite([
+      // สติกเกอร์ซ้ายล่าง (กลางแถบดำแนวตั้ง)
+      { input: sticker, left: 10, top: IMAGE_H + Math.round((BAR_H - stickerSize) / 2) },
+      // text ข้างขวาสติกเกอร์ (กลางแถบดำแนวตั้ง)
+      { input: textBuf, left: textLeft, top: IMAGE_H + Math.round((BAR_H - textH) / 2) },
     ])
     .jpeg({ quality: 90 })
     .toFile(outputPath);
@@ -112,11 +108,40 @@ export async function stampSticker(
   return outputPath;
 }
 
-// Upload รูปไป 0x0.st (ฟรี ไม่ต้อง key) ได้ URL กลับมา
+// Upload รูป — ลองหลายที่จนสำเร็จ
 export async function uploadImage(filePath: string): Promise<string> {
-  const { $ } = await import("bun");
-  const result = await $`curl -s -X POST "https://0x0.st" -F "file=@${filePath}"`.text();
-  const url = result.trim();
-  if (!url.startsWith("http")) throw new Error(`Upload failed: ${url}`);
-  return url;
+  const { readFileSync } = await import("fs");
+  const imageData = readFileSync(filePath);
+
+  // 1. ลอง imgbb (ฟรี)
+  try {
+    const base64 = imageData.toString("base64");
+    const form = new URLSearchParams();
+    form.append("key", "a8be3e0dff3cbbb0c4a1f05a85a81d33"); // free anonymous key
+    form.append("image", base64);
+    const res = await fetch("https://api.imgbb.com/1/upload", {
+      method: "POST",
+      body: form,
+    });
+    const data = await res.json() as any;
+    if (data.success) return data.data.url;
+  } catch {}
+
+  // 2. ลอง freeimage.host (ฟรี)
+  try {
+    const base64 = imageData.toString("base64");
+    const form = new URLSearchParams();
+    form.append("key", "6d207e02198a847aa98d0a2a901485a5");
+    form.append("source", base64);
+    form.append("format", "json");
+    const res = await fetch("https://freeimage.host/api/1/upload", {
+      method: "POST",
+      body: form,
+    });
+    const data = await res.json() as any;
+    if (data.status_code === 200) return data.image.url;
+  } catch {}
+
+  // 3. Fallback: serve จาก local server
+  throw new Error("Upload failed: ไม่สามารถอัปโหลดรูปได้");
 }

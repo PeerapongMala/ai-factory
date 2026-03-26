@@ -86,6 +86,12 @@ async function run() {
           caption = `${item.source_article?.title || ""}\n\n#เกมปังv2 #panggame`;
         }
 
+        // === เพิ่มข้อความทิ้งท้ายเพจถ้าไม่มี ===
+        const CTA_TEXT = "ติดตามเพจใหม่เพื่อรับข่าวสารเพิ่มเติมได้ที่นี่ เกมปังv2";
+        if (!caption.includes("ติดตามเพจ") && !caption.includes("เกมปังv2")) {
+          caption = caption.trimEnd() + "\n\n" + CTA_TEXT;
+        }
+
         // === ดึงรูปข่าว ===
         // 1. RSS thumbnail > 2. og:image จากเว็บต้นทาง > 3. Google search gameplay
         let rawImageUrl = item.source_article?.image || item.static_render?.url || item.render_job?.url;

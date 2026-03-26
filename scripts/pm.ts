@@ -216,17 +216,66 @@ async function pmRun() {
   log("PM", `โหมดโพสต์: ${mode === "auto" ? "โพสต์เลย" : "ถามก่อน"}`);
 
   if (mode === "approve") {
-    // === โหมดถามก่อน: บันทึก pending แล้วส่ง Telegram ให้ตรวจ ===
+    // === โหมดถามก่อน: แปะสติกเกอร์ก่อน แล้วบันทึก pending ===
     const { writeFileSync, mkdirSync } = require("fs");
     const { join } = require("path");
+    const { stampSticker, uploadImage } = require("./post_dept/stamp_sticker");
+
+    // แปะสติกเกอร์ + upload ให้ preview ดูเหมือนโพสต์จริง + เพิ่ม CTA ถ้าไม่มี
+    const CTA_TEXT = "ติดตามเพจใหม่เพื่อรับข่าวสารเพิ่มเติมได้ที่นี่ เกมปังv2";
+    const contentData = JSON.parse(content.output);
+    const items = contentData.data || [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const sc = item.generated_script || {};
+      let rawImageUrl = item.source_article?.image;
+
+      // ดึง og:image ถ้าไม่มีรูป
+      if (!rawImageUrl && item.source_article?.link) {
+        try {
+          const pageRes = await fetch(item.source_article.link, {
+            headers: { "User-Agent": "Mozilla/5.0 (compatible; PangBot/1.0)" },
+            redirect: "follow",
+          });
+          const html = await pageRes.text();
+          const ogMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+            || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+          if (ogMatch) rawImageUrl = ogMatch[1];
+        } catch {}
+      }
+
+      // เพิ่ม CTA ทิ้งท้ายถ้า caption ไม่มี
+      const captionStr = typeof sc.caption === "string" ? sc.caption : JSON.stringify(sc.caption || "");
+      if (!captionStr.includes("ติดตามเพจ") && !captionStr.includes("เกมปังv2")) {
+        if (typeof sc.caption === "string") {
+          sc.caption = sc.caption.trimEnd() + "\n\n" + CTA_TEXT;
+        } else if (sc.caption && typeof sc.caption === "object") {
+          sc.caption.cta = CTA_TEXT;
+        }
+      }
+
+      if (rawImageUrl) {
+        try {
+          const mood = sc.mood === "fail" ? "fail" : "good";
+          const headline = sc.headline || item.source_article?.title || "";
+          const localPath = await stampSticker(rawImageUrl, mood, headline, `pending_${i}.jpg`);
+          const uploadedUrl = await uploadImage(localPath);
+          item.preview_image = uploadedUrl;
+          log("กราฟิก", `แปะสติกเกอร์ #${i + 1}: ${mood} → ${uploadedUrl}`);
+        } catch (e: any) {
+          log("กราฟิก", `แปะสติกเกอร์ไม่ได้: ${e.message}`);
+          item.preview_image = rawImageUrl;
+        }
+      }
+    }
+
     const pendingDir = join(__dirname, "../tmp/pending");
     mkdirSync(pendingDir, { recursive: true });
     const pendingId = Date.now().toString();
     const pendingFile = join(pendingDir, `${pendingId}.json`);
-    writeFileSync(pendingFile, content.output);
+    writeFileSync(pendingFile, JSON.stringify(contentData, null, 2));
 
     // สรุป content ส่งให้แอดมินตรวจ
-    const items = content.data?.data || [];
     let preview = "";
     for (const item of items) {
       const sc = item.generated_script || {};
