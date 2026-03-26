@@ -415,6 +415,60 @@ const server = Bun.serve({
       return json({ status: "stopped" });
     }
 
+    // GET /api/analytics — ดึงยอด posts จาก Facebook
+    if (path === "/api/analytics") {
+      const fbToken = process.env.FB_PAGE_TOKEN;
+      const fbPageId = process.env.FB_PAGE_ID;
+      if (!fbToken || !fbPageId) return json({ error: "Missing FB_PAGE_TOKEN or FB_PAGE_ID" }, 400);
+
+      try {
+        const limit = url.searchParams.get("limit") || "10";
+
+        // 1. ดึง posts พร้อม likes/comments/shares
+        const res = await fetch(
+          `https://graph.facebook.com/v19.0/${fbPageId}/posts?fields=id,message,created_time,permalink_url,full_picture,shares,likes.summary(true),comments.summary(true)&limit=${limit}&access_token=${fbToken}`
+        );
+        const data = await res.json();
+        if (data.error) return json({ error: data.error.message }, 400);
+
+        // 2. ดึง insights แต่ละโพสต์ (parallel)
+        const posts = await Promise.all((data.data || []).map(async (p: any) => {
+          let reach = 0, impressions = 0, engaged = 0, reactions: any = {};
+          try {
+            const insRes = await fetch(
+              `https://graph.facebook.com/v19.0/${p.id}/insights?metric=post_impressions,post_impressions_unique,post_engaged_users,post_reactions_by_type_total&access_token=${fbToken}`
+            );
+            const insData = await insRes.json();
+            if (insData.data) {
+              for (const m of insData.data) {
+                const val = m.values?.[0]?.value;
+                if (m.name === "post_impressions") impressions = val || 0;
+                if (m.name === "post_impressions_unique") reach = val || 0;
+                if (m.name === "post_engaged_users") engaged = val || 0;
+                if (m.name === "post_reactions_by_type_total") reactions = val || {};
+              }
+            }
+          } catch {}
+
+          return {
+            id: p.id,
+            message: (p.message || "").slice(0, 200),
+            created_time: p.created_time,
+            permalink_url: p.permalink_url,
+            image: p.full_picture || "",
+            likes: p.likes?.summary?.total_count || 0,
+            comments: p.comments?.summary?.total_count || 0,
+            shares: p.shares?.count || 0,
+            reach, impressions, engaged, reactions,
+          };
+        }));
+
+        return json(posts);
+      } catch (e: any) {
+        return json({ error: e.message }, 500);
+      }
+    }
+
     // === Static Files ===
     let filePath = path === "/" ? "/index.html" : path;
     const fullPath = join(ROOT, filePath);

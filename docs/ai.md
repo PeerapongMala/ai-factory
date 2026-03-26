@@ -189,3 +189,12 @@ Links:
 
 สร้างพนักงานขาย AI ที่ทำงาน 24 ชม. ด้วยงบ 700 บาท/เดือน
 ใช้ OpenClaw + Claude Cowork → Inbox Monitoring → Prospect Research → Personalized Outreach → ปิดดีล
+
+Host เว็บผ่าน vercel แต่อยากใช้ domain .com ทำได้ไหมครับ แนะนำได้นะครับ ขอบคุณล่วงหน้าครับ
+ได้ครับ (ของผมทำ .online เพราะราคาถูก หมดปีก็เปลี่ยนไปเรื่อยๆ ไม่ต่อ)
+https://www.youtube.com/watch?v=gu3SJB6hXyk
+ผมลองดูคลิปนี้พอเข้าใจ น่าจะเป็นประโยชน์นะครับ ขอบคุณพี่ Pratya Suree ด้วยครับ
+ปที่ Vercel แล้วไปที่ Domain ครับ ให้เลือก Add Domain ของเราได้เลย Vercel จะแสดงผล
+ตัว Setup DNS , Cname ให้ครับ
+ถ้า Doamin เราแอดบน Cloudflare แล้ว ก็ เชื่อมต่อ อัตโนมัติได้เลยครับ แค่ไปยันยันใน cloudlfare (วิธีนี้) ง่ายที่สุด รอ ประมาณ 3-4 นาทีก็เรียบร้อยครับ
+ทำได้ครับ​ vercel มีขาย​ domain .com กับ​.อื่นๆ​ แล้วก็​ custom domain name ผูกกับโปรเจคที่มีอยู่ในบัญชี​เดียวกันได้เลย
