@@ -1,4 +1,8 @@
 {
+  "name": "pang-game-company",
+  "scripts": {
+    "start": "bun run scripts/server.ts"
+  },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "openai": "^6.32.0",
