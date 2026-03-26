@@ -1,88 +1,98 @@
 รายการรออัปเกรด (Game Pang v2 Expansion)
-อัพเดทล่าสุด: 2026-03-25
+อัพเดทล่าสุด: 2026-03-27
 
 === DONE ===
 
 [x] Static Post Pipeline (1:1)
-    - flow: fetch_news -> process_content -> render_static -> request_approval -> social_post
+    - flow: fetch_news -> process_content -> social_post
     - platforms: Facebook + Instagram (ตัด TikTok ออก)
     - ใช้ Ayrshare API โพสต์ทั้ง 2 แพลตฟอร์มพร้อมกัน
 
-[x] Gemini Model Update
-    - เปลี่ยนจาก gemini-1.5-pro-latest -> gemini-2.0-flash
-    - แก้ทั้ง process_content.ts + fetch_assets.ts
-    - เหตุผล: model เก่าถูกถอดออกจาก API แล้ว
+[x] PM AI Brain (Mistral)
+    - เปลี่ยน PM จาก logic เดิม เป็น Mistral Large AI ตัดสินใจเอง
+    - PM ตรวจ content, เทรนพนักงานอัตโนมัติ, สั่ง proceed/retry/skip/train/alert
+    - คุยกับ PM ได้ผ่าน Dashboard
+
+[x] AI Provider Adapter
+    - รองรับ Gemini / OpenAI / Claude / Mistral / Groq ผ่าน provider.ts
+    - ตอนนี้ใช้ Mistral (PM + นักเขียน)
+
+[x] Dashboard (Web UI)
+    - React + Tailwind + Babel 7 (in-browser JSX)
+    - ปุ่ม: RUN PIPELINE, AUTO ทุก 30 นาที, ถามก่อน/โพสต์เลย
+    - ปุ่ม: พนักงาน, Memory, คุย PM, Analytics
+    - AI TOKENS live (ดึงสถานะจริงจาก API)
+    - Pending posts = Facebook post preview จำลอง
+
+[x] Sticker Stamp (sharp)
+    - แปะสติกเกอร์น้องปัง มุมซ้ายล่าง
+    - Headline text + gradient overlay ลงรูปข่าว
+    - mood: good (ข่าวดี) / fail (ข่าวแย่)
+    - upload ผ่าน 0x0.st
+
+[x] RSS Image Extraction
+    - ดึงรูปจาก media:content, enclosure, media:thumbnail, img tag
+    - Fallback: og:image จากเว็บต้นทาง -> Pexels gameplay
+
+[x] Facebook API (สำรอง)
+    - เมื่อ Ayrshare quota หมด (429) สลับไปโพสต์ผ่าน FB Graph API อัตโนมัติ
+    - Page Token ถาวร (ไม่หมดอายุ)
+
+[x] Approve Mode
+    - โหมด "ถามก่อน": PM ทำงานแต่ส่งให้ตรวจก่อนโพสต์
+    - โหมด "โพสต์เลย": โพสต์อัตโนมัติ
+    - Preview เป็น Facebook post จำลองใน Dashboard
+
+[x] Analytics Dashboard
+    - ดึงยอด like/comment/share/reach/engaged จาก Facebook API
+    - แสดงใน Dashboard กดปุ่ม Analytics
+
+[x] Scheduler
+    - รันอัตโนมัติทุก 30 นาที
+    - เปิด/ปิดได้จาก Dashboard
+
+[x] Deploy Railway
+    - URL: ai-factory-production-fc75.up.railway.app
+    - รัน 24/7 บน cloud ไม่ต้องเปิดเครื่อง
+    - Free tier 500 ชม./เดือน
 
 [x] Retry Logic (Guardian)
     - auto-retry 3 ครั้ง เมื่อโดน 429 rate limit
     - รอ 30 วินาทีต่อรอบ
-    - อยู่ใน process_content.ts + fetch_assets.ts
 
 [x] Mascot Sticker Logic
-    - น้อง Pang (ผมชมพู) มี 2 ท่า: Good (ข่าวดี) / Fail (ข่าวร้าย)
-    - AI ประเมิน mascot_mood อัตโนมัติจากเนื้อหาข่าว
-    - render_static.ts แปะ sticker เป็น base64 ส่ง Creatomate
-
-[x] Telegram Approval
-    - request_approval.ts ส่งรูป (sendPhoto) + caption preview
-    - มีปุ่ม APPROVE / REJECT (inline keyboard)
-    - รับ input จาก render_static.ts output
-
-[x] OpenClaw Dashboard + Pixel Office
-    - index.html (React + Tailwind + Babel)
-    - Pixel Office: พนักงาน 4 คน (Scout, Gemini, Anti, Post) นั่งโต๊ะ
-    - ตอน active: emoji bubble (📡🧠🎨📤) + particle ลอยจากจอ + ตัวขยับพิมพ์งาน
-    - ตอน idle: นั่งเฉยๆ ขยับช้า
-    - Output Pipeline icons: Facebook / Instagram / Telegram
-    - Guardian Log แสดง gemini-2.0-flash
-
-[x] GitHub Actions (CI/CD)
-    - .github/workflows/pang-game-pipeline.yml
-    - cron ทุก 30 นาที 24/7 (ไม่ต้องเปิดคอม)
-    - ถ้าไม่มีข่าวใหม่ -> skip ทั้ง pipeline ประหยัด quota
-    - ถ้า Gemini fail -> หยุด pipeline ไม่วิ่ง step ถัดไป
-    - auto push processed_hashes.json กลับ repo กันข่าวซ้ำ
-    - Secrets เก็บใน GitHub (ไม่มี API key ใน code)
-
-[x] Scheduler (standalone)
-    - scripts/scheduler.ts สำหรับรันบนเครื่องตัวเอง
-    - วิ่งทุก 15 นาที แสดง timestamp เวลาไทย
-    - error ไม่ crash แค่ log แล้วรอรอบถัดไป
+    - น้อง Pang มี 2 ท่า: Good / Fail
+    - AI ประเมิน mood อัตโนมัติ
+    - ลบ background แล้ว (transparent PNG)
 
 [x] GitHub Repo + Security
     - repo: github.com/PeerapongMala/ai-factory (private)
     - .gitignore กัน .env / node_modules / .jpg / audio
-    - API keys ทั้งหมดอยู่ใน GitHub Secrets
+    - API keys อยู่ใน Railway Variables
 
 [x] Pipeline Bug Fix
-    - แยก stderr (retry log) ออกจาก stdout (JSON) ด้วย 2>/dev/null
-    - เพิ่ม executor skip check ใน workflow
-    - ป้องกัน JSON parse error เมื่อ step ก่อนหน้า fail
+    - แยก stderr ออกจาก stdout
+    - fire-and-forget pipeline (ไม่ timeout)
+    - poll status ทุก 3 วินาที
 
 
-=== TODO (Pang Game - บริษัทต้นแบบ) ===
+=== TODO ===
 
-[ ] รอ Gemini Quota Reset
-    - free tier daily quota หมดวันนี้ (2026-03-25)
-    - พรุ่งนี้ pipeline จะวิ่งได้จริงอัตโนมัติผ่าน GitHub Actions
-    - ทางเลือก: สร้าง API key ใหม่จาก aistudio.google.com ไม่ต้องรอ
+[ ] เชื่อม Instagram กับ Ayrshare
+    - ทำใน ayrshare.com dashboard
+    - จะโพสต์ IG ได้ด้วย
 
-[ ] Token Summary บน Dashboard
-    - เพิ่มระบบนับ Gemini token ใช้จริงต่อวัน/เดือน
-    - แสดงบน Dashboard ช่อง API BUDGET (ตอนนี้เป็นตัวเลขจำลอง)
-    - คำนวณค่าใช้จ่ายจริง เทียบกับงบ 1,000 บาท/เดือน
-
-[ ] Telegram Approve (optional)
-    - ตัดออกจาก pipeline แล้ว ตอนนี้โพสต์อัตโนมัติเลย
-    - ถ้าอยากเพิ่มกลับมาทีหลัง: ใช้ Cloudflare Worker ฟรี รับ callback
+[ ] ซื้อ Domain
+    - แนะนำ Cloudflare .com ~฿340/ปี
+    - หรือใช้ .up.railway.app ฟรี
 
 
-=== BACKLOG (รอบริษัทต้นแบบเสร็จ) ===
+=== BACKLOG ===
 
 [ ] Facebook Reels (แผนกวิดีโอ)
-    - พับไว้ก่อน รอ Static Post ลงตัว
-    - มีโค้ดพร้อมแล้ว: text_to_speech.ts / fetch_assets.ts / render_video.ts
+    - มีโค้ดพร้อม: text_to_speech.ts / fetch_assets.ts / render_video.ts
     - ต้องต่อ ElevenLabs + Pexels + Creatomate video template
+    - รอต่อเข้า PM pipeline
 
 [ ] ระบบรับออร์เดอร์ LINE
     - โปรเจกต์ช่วยงานขายอาหารของคุณยาย
