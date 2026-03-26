@@ -12,6 +12,7 @@ interface NewsItem {
   link: string;
   summary: string;
   source: string;
+  image?: string;
 }
 
 interface ResearcherOutput {
@@ -112,11 +113,33 @@ async function fetchNews(): Promise<ResearcherOutput> {
               }
             }
 
+            // ดึงรูปจาก RSS (ลอง 4 แหล่ง)
+            let image: string | undefined;
+            // 1. <media:content url="...">
+            const mediaMatch = itemXml.match(/<media:content[^>]+url=["']([^"']+)["']/);
+            if (mediaMatch) image = mediaMatch[1];
+            // 2. <enclosure url="..." type="image/...">
+            if (!image) {
+              const encMatch = itemXml.match(/<enclosure[^>]+url=["']([^"']+)["'][^>]*type=["']image[^"']*/);
+              if (encMatch) image = encMatch[1];
+            }
+            // 3. <media:thumbnail url="...">
+            if (!image) {
+              const thumbMatch = itemXml.match(/<media:thumbnail[^>]+url=["']([^"']+)["']/);
+              if (thumbMatch) image = thumbMatch[1];
+            }
+            // 4. <img src="..."> ใน description
+            if (!image && descMatch) {
+              const imgMatch = descMatch[1].match(/<img[^>]+src=["']([^"']+)["']/);
+              if (imgMatch) image = imgMatch[1];
+            }
+
             allNews.push({
               title: cleanHtml(rawTitle),
               link: linkMatch[1].trim(),
               summary: cleanHtml(descMatch ? descMatch[1] : ''),
-              source: source.name
+              source: source.name,
+              image
             });
 
             latestHashes.add(newsHash);

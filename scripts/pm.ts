@@ -1,13 +1,24 @@
 /**
- * Role: The PM (Project Manager)
- * ศูนย์กลางสั่งงาน รับรายงาน แก้ปัญหา
+ * Role: The PM (Project Manager) — AI Brain (Mistral)
+ * ศูนย์กลางสั่งงาน รับรายงาน แก้ปัญหา คิดเอง
  * พนักงานทุกคนรายงานตรงกับ PM เท่านั้น ไม่ต้องรู้จักกัน
  */
 import { $ } from "bun";
-import { train, listMemory, listAgents, loadAgent } from "./agents/memory";
+import { train, listMemory, listAgents, loadAgent, getMemoryPrompt } from "./agents/memory";
+import { generateContent, type ProviderConfig } from "./ai/provider";
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+
+// โหมดโพสต์: "auto" = โพสต์เลย, "approve" = ส่งตรวจก่อน
+function getPostMode(): "auto" | "approve" {
+  try {
+    const { readFileSync } = require("fs");
+    const { join } = require("path");
+    const modeFile = join(__dirname, "../tmp/post_mode.txt");
+    return readFileSync(modeFile, "utf8").trim() as any || "approve";
+  } catch { return "approve"; }
+}
 
 function ts(): string {
   return new Date().toLocaleString("th-TH", { timeZone: "Asia/Bangkok" });
@@ -32,6 +43,42 @@ async function pmReport(message: string) {
     });
   } catch (e) {
     log("PM", "ส่ง Telegram ไม่ได้ ข้ามไป");
+  }
+}
+
+// PM Brain — ถาม Mistral ให้ตัดสินใจ
+const pmAgent = loadAgent("pm.json");
+const pmMemory = getMemoryPrompt("pm.json");
+const pmProviderConfig: ProviderConfig = {
+  provider: pmAgent.provider || "openai",
+  model: pmAgent.model || "mistral-large-latest",
+  apiKeyEnv: pmAgent.apiKeyEnv || "MISTRAL_API_KEY",
+  baseUrl: pmAgent.baseUrl || "https://api.mistral.ai/v1",
+};
+const pmSystemPrompt = (pmAgent.systemPrompt || "") + pmMemory;
+
+interface PMDecision {
+  action: "proceed" | "retry" | "skip" | "train" | "alert";
+  reason: string;
+  trainTarget?: string;
+  trainFeedback?: string;
+}
+
+async function pmThink(situation: string): Promise<PMDecision> {
+  try {
+    const res = await generateContent(pmProviderConfig, {
+      prompt: situation,
+      systemPrompt: pmSystemPrompt,
+      maxTokens: pmAgent.generationConfig?.maxOutputTokens || 512,
+      temperature: pmAgent.generationConfig?.temperature || 0.3,
+      jsonMode: true,
+    });
+
+    if (res.parsed) return res.parsed as PMDecision;
+    return { action: "proceed", reason: "PM ตอบ JSON ไม่ได้ ดำเนินต่อ" };
+  } catch (err: any) {
+    log("PM", `AI Brain error: ${err.message} — fallback to proceed`);
+    return { action: "proceed", reason: "AI Brain ล่ม ใช้ logic เดิม" };
   }
 }
 
@@ -94,63 +141,126 @@ async function assignWithRetry(role: string, command: string, inputFile: string 
   return { success: false, output: "", data: { status: "FAILED", error: "retry หมดแล้ว" } };
 }
 
-// ===== PM เริ่มทำงาน =====
+// ===== PM เริ่มทำงาน (AI Brain) =====
 async function pmRun() {
-  log("PM", "=== เริ่มประชุมเช้า ===");
+  log("PM", "=== เริ่มประชุมเช้า (AI Brain: Mistral) ===");
 
   // 1. สั่ง นักข่าว ไปหาข่าว
   const news = await assignWork("นักข่าว", "scripts/fetch_news.ts");
   if (!news.success) {
-    log("PM", "ไม่มีข่าวใหม่ ปิดประชุม รอรอบถัดไป");
+    const decision = await pmThink(
+      `นักข่าวรายงาน: ไม่มีข่าวใหม่\nError: ${news.data?.error || "ไม่ทราบ"}\nPM ควรทำอะไร?`
+    );
+    log("PM", `AI ตัดสินใจ: ${decision.action} — ${decision.reason}`);
+    if (decision.action === "alert") {
+      await pmReport(`⚠️ <b>PM AI</b>\n\nนักข่าวไม่มีข่าวใหม่\nPM คิด: ${decision.reason}\nเวลา: ${ts()}`);
+    }
     return;
   }
 
   const newsCount = news.data.data?.length || 0;
   log("PM", `นักข่าวหาข่าวได้ ${newsCount} ข่าว`);
 
-  // เซฟ output ไว้ส่งต่อ
   const step1File = "/tmp/pm_step1.json";
   await Bun.write(step1File, news.output);
 
-  // 2. สั่ง นักเขียน เขียน content (ให้ PM retry ถ้าโดน rate limit)
+  // 2. สั่ง นักเขียน เขียน content
   const content = await assignWithRetry("นักเขียน", "scripts/process_content.ts", step1File, 3);
   if (!content.success) {
-    log("PM", "นักเขียนทำงานไม่ได้ PM ตัดสินใจ: แจ้ง Telegram แล้วรอรอบถัดไป");
-    await pmReport(`⚠️ <b>PM Report</b>\n\nนักเขียนทำงานไม่ได้\nเหตุผล: ${content.data?.error || "unknown"}\nเวลา: ${ts()}`);
+    const decision = await pmThink(
+      `นักเขียนทำงานไม่สำเร็จ\nError: ${content.data?.error || "unknown"}\nPM ควรทำอะไร?`
+    );
+    log("PM", `AI ตัดสินใจ: ${decision.action} — ${decision.reason}`);
+    await pmReport(`⚠️ <b>PM AI</b>\n\nนักเขียนพัง\nPM คิด: ${decision.reason}\nเวลา: ${ts()}`);
     return;
   }
 
   const step2File = "/tmp/pm_step2.json";
   await Bun.write(step2File, content.output);
 
-  // 3. สั่ง ตรวจสอบ (Guardian) - เช็คว่า content ถูกต้อง
-  // Guardian ตรวจอยู่ใน fetch_news แล้ว (hash + 24h) PM แค่ log
-  log("ตรวจสอบ", "hash ไม่ซ้ำ + ข่าวไม่เกิน 24 ชม. ผ่าน (ตรวจตั้งแต่ขั้นนักข่าว)");
+  // 3. PM ตรวจ content ด้วย AI — เช็คคุณภาพตาม feedback ที่เคยได้
+  const contentPreview = content.output.slice(0, 1500);
+  const reviewDecision = await pmThink(
+    `นักเขียนส่ง content มาแล้ว ช่วยตรวจดูหน่อย:\n${contentPreview}\n\nเช็คว่า:\n- caption อ่านง่ายมั้ย\n- ตรงตาม feedback ที่เคยได้มั้ย (ดู memory)\n- ควร proceed โพสต์เลย หรือ train นักเขียนเพิ่ม?\n\nถ้า action=train ต้องส่ง trainTarget (เช่น "นักเขียน") และ trainFeedback (คำสั่งที่จะสอน) ด้วย`
+  );
+  log("PM", `AI ตรวจ content: ${reviewDecision.action} — ${reviewDecision.reason}`);
 
-  // 4. สั่ง กราฟิก render ภาพ
-  const render = await assignWork("กราฟิก", "scripts/post_dept/render_static.ts", step2File);
-  if (!render.success) {
-    log("PM", "กราฟิกทำภาพไม่ได้ PM ตัดสินใจ: แจ้ง Telegram");
-    await pmReport(`⚠️ <b>PM Report</b>\n\nกราฟิกทำภาพไม่ได้\nเหตุผล: ${render.data?.error || "unknown"}\nเวลา: ${ts()}`);
+  if (reviewDecision.action === "train") {
+    const AGENT_MAP: Record<string, string> = {
+      "นักเขียน": "writer.json", "นักข่าว": "reporter.json",
+      "กราฟิก": "graphic.json", "โพสต์": "publisher.json",
+    };
+    const target = reviewDecision.trainTarget || "นักเขียน";
+    const feedback = reviewDecision.trainFeedback || reviewDecision.reason;
+    const targetFile = AGENT_MAP[target];
+    if (targetFile && feedback) {
+      train(targetFile, feedback, "PM (AI)");
+      log("PM", `เทรน ${target}: "${feedback}"`);
+    }
+  }
+
+  if (reviewDecision.action === "skip") {
+    log("PM", "AI ตัดสินใจ skip content นี้");
+    await pmReport(`⚠️ <b>PM AI</b>\n\nContent ไม่ผ่าน\nPM คิด: ${reviewDecision.reason}\nเวลา: ${ts()}`);
     return;
   }
 
-  const step3File = "/tmp/pm_step3.json";
-  await Bun.write(step3File, render.output);
+  // 4. Guardian check
+  log("ตรวจสอบ", "hash ไม่ซ้ำ + ข่าวไม่เกิน 24 ชม. ผ่าน");
 
-  // 5. สั่ง โพสต์ ลง FB + IG
-  const post = await assignWork("โพสต์", "scripts/post_dept/social_post.ts", step3File);
+  // 5. กราฟิก — stamp_sticker ทำใน social_post.ts แล้ว (แปะสติกเกอร์ + headline + upload)
+  log("กราฟิก", "stamp sticker จะทำใน social_post (แปะน้องปัง + headline ลงรูป)")
+  let postInputFile = step2File;
+
+  const mode = getPostMode();
+  log("PM", `โหมดโพสต์: ${mode === "auto" ? "โพสต์เลย" : "ถามก่อน"}`);
+
+  if (mode === "approve") {
+    // === โหมดถามก่อน: บันทึก pending แล้วส่ง Telegram ให้ตรวจ ===
+    const { writeFileSync, mkdirSync } = require("fs");
+    const { join } = require("path");
+    const pendingDir = join(__dirname, "../tmp/pending");
+    mkdirSync(pendingDir, { recursive: true });
+    const pendingId = Date.now().toString();
+    const pendingFile = join(pendingDir, `${pendingId}.json`);
+    writeFileSync(pendingFile, content.output);
+
+    // สรุป content ส่งให้แอดมินตรวจ
+    const items = content.data?.data || [];
+    let preview = "";
+    for (const item of items) {
+      const sc = item.generated_script || {};
+      const headline = sc.headline || item.source_article?.title || "N/A";
+      const caption = typeof sc.caption === "string" ? sc.caption.slice(0, 200) : JSON.stringify(sc.caption || "").slice(0, 200);
+      preview += `\n\n<b>${headline}</b>\n${caption}...`;
+    }
+
+    await pmReport(
+      `📋 <b>รอตรวจก่อนโพสต์</b>\n${preview}\n\n🔑 ID: <code>${pendingId}</code>\n✅ อนุมัติ: กดใน Dashboard\n🕐 เวลา: ${ts()}`
+    );
+
+    log("PM", `บันทึก pending #${pendingId} — รอแอดมินอนุมัติ`);
+    log("PM", "=== รอตรวจ ปิดประชุม ===");
+    return;
+  }
+
+  // === โหมดโพสต์เลย ===
+  // 6. สั่ง โพสต์ ลง FB + IG
+  const post = await assignWork("โพสต์", "scripts/post_dept/social_post.ts", postInputFile);
   if (!post.success) {
-    log("PM", "โพสต์ไม่สำเร็จ PM ตัดสินใจ: แจ้ง Telegram");
-    await pmReport(`⚠️ <b>PM Report</b>\n\nโพสต์ FB/IG ไม่สำเร็จ\nเหตุผล: ${post.data?.error || "unknown"}\nเวลา: ${ts()}`);
+    const decision = await pmThink(
+      `โพสต์ FB/IG ไม่สำเร็จ\nError: ${post.data?.error || "unknown"}\nPM ควรทำอะไร?`
+    );
+    log("PM", `AI ตัดสินใจ: ${decision.action} — ${decision.reason}`);
+    await pmReport(`⚠️ <b>PM AI</b>\n\nโพสต์ไม่สำเร็จ\nPM คิด: ${decision.reason}\nเวลา: ${ts()}`);
     return;
   }
 
-  // 6. PM สรุปงาน
+  // 7. PM สรุปงาน
   log("PM", "=== งานเสร็จทั้งหมด ปิดประชุม ===");
 
   const titles = news.data.data?.map((n: any) => n.title).join("\n• ") || "N/A";
-  await pmReport(`✅ <b>PM Report - สำเร็จ!</b>\n\n📰 ข่าวที่โพสต์:\n• ${titles}\n\n📱 Platforms: Facebook + Instagram\n🕐 เวลา: ${ts()}`);
+  await pmReport(`✅ <b>PM AI Report</b>\n\n📰 ข่าวที่โพสต์:\n• ${titles}\n\n🧠 PM Review: ${reviewDecision.reason}\n📱 Platforms: Facebook + Instagram\n🕐 เวลา: ${ts()}`);
 }
 
 // ===== PM เทรนพนักงาน =====

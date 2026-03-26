@@ -37,8 +37,8 @@
     <!-- React & ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <!-- Babel -->
-    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <!-- Babel 7 -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
         body {
@@ -247,9 +247,11 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
+        const API_BASE = window.location.origin;
+
         const AI_ROLES = [
             { id: 'scout', name: 'นักข่าว (RSS Scout)', image: 'assets/avatars/researcher.png', dept: 'Core' },
-            { id: 'brain', name: 'นักเขียน (Gemini)', image: 'assets/avatars/executor.png', dept: 'Post' },
+            { id: 'brain', name: 'นักเขียน (Mistral)', image: 'assets/avatars/executor.png', dept: 'Post' },
             { id: 'guardian', name: 'ตรวจสอบ (Guardian)', image: 'assets/avatars/guardian.png', dept: 'Core' },
             { id: 'anti', name: 'กราฟิก (Creatomate)', image: 'assets/avatars/guardian.png', dept: 'Post' },
             { id: 'publisher', name: 'โพสต์ (FB/IG)', image: 'assets/avatars/summarizer.png', dept: 'Post' },
@@ -287,19 +289,211 @@
                 id: r.id, status: '[SLEEP]', dot: 'dot-gray', msg: 'Offline'
             })));
 
+            // Panel states
+            const [showPanel, setShowPanel] = useState(null); // 'agents' | 'memory' | 'train' | null
+            const [agentList, setAgentList] = useState([]);
+            const [allMemory, setAllMemory] = useState({});
+            const [trainAgent, setTrainAgent] = useState('');
+            const [trainFeedback, setTrainFeedback] = useState('');
+            const [trainResult, setTrainResult] = useState('');
+            const [pmChatInput, setPmChatInput] = useState('');
+            const [pmChatLogs, setPmChatLogs] = useState([]);
+            const [pmChatLoading, setPmChatLoading] = useState(false);
+            const [pipelineOutput, setPipelineOutput] = useState('');
+            const [pipelineRunning, setPipelineRunning] = useState(false);
+            const [tokenData, setTokenData] = useState([]);
+            const [schedulerOn, setSchedulerOn] = useState(false);
+            const [postMode, setPostMode] = useState('approve');
+            const [pendingPosts, setPendingPosts] = useState([]);
+
             const [chatLogs, setChatLogs] = useState([
                 { sysTime: 'SYS', agent: 'System', msg: 'Pang Game Company v1.1 OS Booted.', isSys: true }
             ]);
 
             const logsEndRef = useRef(null);
 
+            // Fetch post mode
+            const fetchPostMode = async () => {
+                try {
+                    const res = await fetch(API_BASE + '/api/postmode');
+                    const data = await res.json();
+                    setPostMode(data.mode);
+                } catch(e) {}
+            };
+
+            // Toggle post mode
+            const togglePostMode = async () => {
+                try {
+                    const res = await fetch(API_BASE + '/api/postmode', { method: 'POST' });
+                    const data = await res.json();
+                    setPostMode(data.mode);
+                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'System', msg: data.mode === 'auto' ? 'เปลี่ยนเป็น: โพสต์เลย' : 'เปลี่ยนเป็น: ถามก่อน', isSys: true }]);
+                } catch(e) {}
+            };
+
+            // Fetch pending posts
+            const fetchPending = async () => {
+                try {
+                    const res = await fetch(API_BASE + '/api/pending');
+                    const data = await res.json();
+                    setPendingPosts(data);
+                } catch(e) {}
+            };
+
+            // Approve pending post
+            const approvePending = async (id) => {
+                try {
+                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'Admin', msg: 'อนุมัติโพสต์ #' + id, isAdmin: true }]);
+                    const res = await fetch(API_BASE + '/api/pending/' + id + '/approve', { method: 'POST' });
+                    const data = await res.json();
+                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'System', msg: data.msg || data.error, isSys: true }]);
+                    fetchPending();
+                } catch(e) {}
+            };
+
+            // Reject pending post
+            const rejectPending = async (id) => {
+                try {
+                    const res = await fetch(API_BASE + '/api/pending/' + id + '/reject', { method: 'POST' });
+                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'System', msg: 'ลบโพสต์ #' + id, isSys: true }]);
+                    fetchPending();
+                } catch(e) {}
+            };
+
+            // Fetch scheduler status
+            const fetchScheduler = async () => {
+                try {
+                    const res = await fetch(API_BASE + '/api/scheduler');
+                    const data = await res.json();
+                    setSchedulerOn(data.status === 'running');
+                } catch(e) { /* ignore */ }
+            };
+
+            // Toggle scheduler
+            const toggleScheduler = async () => {
+                try {
+                    const res = await fetch(API_BASE + '/api/scheduler', { method: 'POST' });
+                    const data = await res.json();
+                    setSchedulerOn(data.status === 'running');
+                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'Scheduler', msg: data.msg, isSys: true }]);
+                } catch(e) { /* ignore */ }
+            };
+
+            // Fetch token status
+            const fetchTokens = async () => {
+                try {
+                    const res = await fetch(API_BASE + '/api/tokens');
+                    const data = await res.json();
+                    setTokenData(data);
+                } catch(e) { /* ignore */ }
+            };
+
+            // Fetch agents list
+            const fetchAgents = async () => {
+                try {
+                    const res = await fetch(API_BASE + '/api/agents');
+                    const data = await res.json();
+                    setAgentList(data);
+                } catch(e) { setAgentList([]); }
+            };
+
+            // Fetch all memory
+            const fetchMemory = async () => {
+                try {
+                    const res = await fetch(API_BASE + '/api/memory');
+                    const data = await res.json();
+                    setAllMemory(data);
+                } catch(e) { setAllMemory({}); }
+            };
+
+            // Train agent
+            const handleTrain = async () => {
+                if (!trainAgent || !trainFeedback.trim()) return;
+                try {
+                    const res = await fetch(API_BASE + '/api/train', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ agent: trainAgent, feedback: trainFeedback })
+                    });
+                    const data = await res.json();
+                    setTrainResult(`เทรน ${data.name} สำเร็จ! memory: ${data.memoryCount} รายการ`);
+                    setTrainFeedback('');
+                    fetchMemory();
+                } catch(e) { setTrainResult('เทรนไม่สำเร็จ'); }
+            };
+
+            // Chat with PM
+            const handlePmChat = async () => {
+                if (!pmChatInput.trim() || pmChatLoading) return;
+                const msg = pmChatInput.trim();
+                setPmChatLogs(prev => [...prev, { from: 'admin', text: msg }]);
+                setPmChatInput('');
+                setPmChatLoading(true);
+                try {
+                    const res = await fetch(API_BASE + '/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: msg })
+                    });
+                    const data = await res.json();
+                    let reply = data.reply || data.text || JSON.stringify(data);
+                    if (data.trained) reply += '\n\n(PM เทรนพนักงานแล้ว)';
+                    setPmChatLogs(prev => [...prev, { from: 'pm', text: reply }]);
+                } catch(e) {
+                    setPmChatLogs(prev => [...prev, { from: 'pm', text: 'Error: ติดต่อ PM ไม่ได้' }]);
+                }
+                setPmChatLoading(false);
+            };
+
+            // Run pipeline (fire-and-forget + poll status)
+            const handleRunPipeline = async () => {
+                if (pipelineRunning) return;
+                setPipelineRunning(true);
+                setPipelineOutput('กำลังรัน pipeline...');
+                const now = new Date();
+                setChatLogs(prev => [...prev, { sysTime: `${now.getHours()}:${now.getMinutes()}`, agent: 'Admin', msg: '!run pipeline (REAL)', isAdmin: true }]);
+                try {
+                    const res = await fetch(API_BASE + '/api/run', { method: 'POST' });
+                    const data = await res.json();
+                    setPipelineOutput(data.output || data.error || 'started');
+
+                    // Poll status ทุก 3 วินาที จนเสร็จ
+                    const poll = setInterval(async () => {
+                        try {
+                            const sr = await fetch(API_BASE + '/api/run/status');
+                            const st = await sr.json();
+                            if (st.status !== 'running') {
+                                clearInterval(poll);
+                                setPipelineRunning(false);
+                                setPipelineOutput(st.log || 'Pipeline เสร็จแล้ว');
+                                setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'System', msg: 'Pipeline เสร็จแล้ว ดู output ใน panel', isSys: true }]);
+                            } else {
+                                setPipelineOutput(st.log || 'กำลังทำงาน...');
+                            }
+                        } catch(pe) { /* ignore poll error */ }
+                    }, 3000);
+                } catch(e) {
+                    setPipelineOutput('Error: ' + e.message);
+                    setPipelineRunning(false);
+                }
+            };
+
+            // Fetch tokens + scheduler + mode + pending on mount + every 15s
+            useEffect(() => {
+                fetchTokens(); fetchScheduler(); fetchPostMode(); fetchPending();
+                const interval = setInterval(() => {
+                    fetchTokens(); fetchScheduler(); fetchPostMode(); fetchPending();
+                }, 15000);
+                return () => clearInterval(interval);
+            }, []);
+
             // Clock & Random Chart data
             useEffect(() => {
                 const interval = setInterval(() => {
                     const now = new Date();
                     setTime(now.toLocaleTimeString('en-US', { hour12: false }) + ' AM');
-                }, 1000); // 1 sec tick for retro feel
-                
+                }, 1000);
+
                 const chartInterval = setInterval(() => {
                     if (isRunning) {
                         setChartHeights(prev => prev.map(() => Math.floor(Math.random() * 80) + 10));
@@ -415,7 +609,7 @@
                         {/* Company Stats HUD */}
                         <div className="flex gap-4">
                             <div className="hud-box bg-green-900 border-green-300">
-                                💰 G: <span className="text-yellow-400">{budget.toLocaleString()}</span>
+                                💰 COST: <span className="text-green-400">฿0 FREE</span>
                             </div>
                             <div className="hud-box bg-blue-900 border-blue-300">
                                 📅 YEAR 1 <span className="text-gray-300 text-xl ml-2">{time}</span>
@@ -458,13 +652,42 @@
                                 ))}
                             </div>
                             
-                            {/* Action Button */}
-                            <button 
-                                onClick={handleStart}
-                                disabled={isRunning || requiresApproval}
-                                className={`mt-auto w-full py-4 rounded font-pixel text-xl tracking-widest border-4 transition-all ${isRunning || requiresApproval ? 'border-[#334155] text-gray-400 bg-gray-800 outline outline-2 outline-black' : 'border-[#10b981] text-black bg-[#34d399] hover:bg-[#10b981] outline outline-2 outline-black shadow-[inset_2px_2px_0px_rgba(255,255,255,0.4)]'}`}>
-                                {requiresApproval ? 'WAITING APPROVAL...' : '> START PIPELINE <'}
-                            </button>
+                            {/* Action Buttons */}
+                            <div className="mt-auto flex flex-col gap-2">
+                                <button
+                                    onClick={handleRunPipeline}
+                                    disabled={pipelineRunning}
+                                    className={`w-full py-3 rounded font-pixel text-xl tracking-widest border-4 transition-all ${pipelineRunning ? 'border-[#334155] text-gray-400 bg-gray-800' : 'border-[#10b981] text-black bg-[#34d399] hover:bg-[#10b981] shadow-[inset_2px_2px_0px_rgba(255,255,255,0.4)]'}`}>
+                                    {pipelineRunning ? 'RUNNING...' : '▶ RUN PIPELINE'}
+                                </button>
+                                <button
+                                    onClick={toggleScheduler}
+                                    className={`w-full py-2 rounded font-pixel text-sm tracking-widest border-2 transition-all ${schedulerOn ? 'border-red-500 text-red-400 bg-red-500/10 hover:bg-red-500/20' : 'border-yellow-500 text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20'}`}>
+                                    {schedulerOn ? '⏹ STOP AUTO' : '⏰ AUTO ทุก 30 นาที'}
+                                </button>
+                                <button
+                                    onClick={togglePostMode}
+                                    className={`w-full py-2 rounded font-pixel text-sm tracking-widest border-2 transition-all ${postMode === 'approve' ? 'border-blue-400 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20' : 'border-green-400 text-green-400 bg-green-500/10 hover:bg-green-500/20'}`}>
+                                    {postMode === 'approve' ? '🔍 ถามก่อนโพสต์' : '⚡ โพสต์เลย'}
+                                </button>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <button
+                                        onClick={() => { fetchAgents(); setShowPanel('agents'); }}
+                                        className="py-2 rounded font-pixel text-sm tracking-wider border-2 border-neonBlue text-neonBlue bg-neonBlue/10 hover:bg-neonBlue/20 transition-all">
+                                        👥 พนักงาน
+                                    </button>
+                                    <button
+                                        onClick={() => { fetchMemory(); setShowPanel('memory'); }}
+                                        className="py-2 rounded font-pixel text-sm tracking-wider border-2 border-neonPurple text-neonPurple bg-neonPurple/10 hover:bg-neonPurple/20 transition-all">
+                                        🧠 Memory
+                                    </button>
+                                    <button
+                                        onClick={() => { setShowPanel('chat'); }}
+                                        className="py-2 rounded font-pixel text-sm tracking-wider border-2 border-neonOrange text-neonOrange bg-neonOrange/10 hover:bg-neonOrange/20 transition-all">
+                                        💬 คุย PM
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         {/* CENTER: Command Center & Briefing Room */}
@@ -647,26 +870,43 @@
                         {/* RIGHT: Plugins & Logs */}
                         <div className="col-span-1 lg:col-span-3 flex flex-col gap-5 min-h-0">
                             
-                            {/* Budget Tracker */}
+                            {/* AI Token Tracker — Dynamic */}
                             <div className="panel panel-green flex-1 flex flex-col p-4 pt-6">
-                                <div className="panel-header text-neonGreen">API BUDGET</div>
-                                <div className="flex flex-col h-full bg-black/40 border border-gray-800 p-3 rounded">
-                                    <div className="flex justify-between items-center mb-6">
-                                        <span className="font-bold text-gray-400 text-xs">MONTHLY LIMIT</span>
-                                        <span className={`font-pixel text-2xl drop-shadow-[0_0_5px_currentColor] ${budget < 500 ? 'text-neonRed' : 'text-neonGreen'}`}>
-                                            ฿{budget}
-                                        </span>
+                                <div className="panel-header text-neonGreen">AI TOKENS</div>
+                                <div className="flex flex-col h-full bg-black/40 border border-gray-800 p-3 rounded gap-3">
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-bold text-gray-400 text-xs">COST</span>
+                                        <span className="font-pixel text-2xl text-neonGreen drop-shadow-[0_0_5px_currentColor]">฿0</span>
                                     </div>
-                                    
-                                    {/* Bar Chart */}
-                                    <div className="mt-auto h-24 flex items-end justify-between gap-1 px-2">
-                                        {chartHeights.map((h, i) => (
-                                            <div key={i} className="w-full bg-blue-500/80 bar rounded-t" style={{height: `${h}%`}}></div>
-                                        ))}
-                                    </div>
-                                    <div className="border-t border-gray-700 mt-1 pt-1 flex justify-between text-[10px] text-gray-500">
-                                        <span>MO</span><span>TU</span><span>WE</span><span>TH</span><span>FR</span><span>SA</span><span>SU</span>
-                                    </div>
+
+                                    {tokenData.length === 0 ? (
+                                        <div className="text-xs text-gray-500 text-center py-4">Loading...</div>
+                                    ) : tokenData.map(function(tk, i) {
+                                        var colorMap = { orange: 'text-orange-300', blue: 'text-blue-300', teal: 'text-teal-300', purple: 'text-purple-300', cyan: 'text-cyan-300' };
+                                        var barColorMap = { orange: 'bg-orange-400', blue: 'bg-blue-400', teal: 'bg-teal-400', purple: 'bg-purple-400', cyan: 'bg-cyan-400' };
+                                        var textColor = colorMap[tk.color] || 'text-gray-300';
+                                        var barColor = barColorMap[tk.color] || 'bg-neonGreen';
+                                        var statusText = tk.status === 'active' ? 'ACTIVE' : tk.status === 'quota_exceeded' ? 'QUOTA FULL' : tk.status === 'no_key' ? 'NO KEY' : tk.status === 'error' ? 'ERROR' : 'OFFLINE';
+                                        var statusColor = tk.status === 'active' ? 'text-neonGreen' : tk.status === 'quota_exceeded' ? 'text-red-400' : 'text-gray-500';
+                                        var pct = tk.pct != null ? tk.pct : (tk.status === 'active' ? 99 : 0);
+
+                                        return React.createElement('div', { key: i, className: 'bg-black/50 p-2 rounded border border-gray-800' },
+                                            React.createElement('div', { className: 'flex justify-between items-center mb-1' },
+                                                React.createElement('span', { className: 'text-xs font-bold ' + textColor }, tk.name),
+                                                React.createElement('span', { className: 'font-pixel text-sm ' + statusColor }, statusText)
+                                            ),
+                                            React.createElement('div', { className: 'text-[10px] text-gray-500 mb-1' }, tk.role),
+                                            tk.limit ? React.createElement('div', null,
+                                                React.createElement('div', { className: 'w-full h-2 bg-gray-800 rounded overflow-hidden' },
+                                                    React.createElement('div', { className: 'h-full rounded ' + barColor, style: { width: pct + '%' } })
+                                                ),
+                                                React.createElement('div', { className: 'flex justify-between text-[10px] text-gray-500 mt-1' },
+                                                    React.createElement('span', null, tk.used + '/' + tk.limit + ' posts'),
+                                                    React.createElement('span', null, pct + '%')
+                                                )
+                                            ) : null
+                                        );
+                                    })}
                                 </div>
                             </div>
 
@@ -678,7 +918,7 @@
                                          <i className="fa-solid fa-shield text-orange-400 text-2xl drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]"></i>
                                          <div>
                                             <div className="text-xs font-bold text-gray-300">TOKEN SHIELD</div>
-                                            <div className="text-[10px] text-gray-500">gemini-2.0-flash</div>
+                                            <div className="text-[10px] text-gray-500">mistral-large-latest</div>
                                          </div>
                                      </div>
                                      <div className="flex items-center justify-between bg-black/50 p-2 rounded border border-gray-800">
@@ -707,6 +947,148 @@
 
                         </div>
                     </div>
+                    {/* === Modal Overlay === */}
+                    {showPanel && (
+                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setShowPanel(null)}>
+                            <div className="panel panel-orange w-full max-w-2xl max-h-[80vh] flex flex-col p-6 pt-8 overflow-hidden" onClick={e => e.stopPropagation()}>
+                                <div className="panel-header text-neonOrange">
+                                    {showPanel === 'agents' ? '👥 TEAM ROSTER' : showPanel === 'memory' ? '🧠 AGENT MEMORY' : showPanel === 'chat' ? '💬 คุยกับหัวหน้างาน (PM)' : '📝 TRAIN AGENT'}
+                                </div>
+
+                                {/* Close */}
+                                <button onClick={() => setShowPanel(null)} className="absolute top-2 right-4 text-gray-400 hover:text-white text-xl font-bold">✕</button>
+
+                                <div className="flex-1 overflow-y-auto mt-2">
+
+                                    {/* ดูพนักงาน */}
+                                    {showPanel === 'agents' && (
+                                        <div className="flex flex-col gap-3">
+                                            {agentList.length === 0 && <div className="text-gray-400 font-pixel">กำลังโหลด...</div>}
+                                            {agentList.map((a, i) => (
+                                                <div key={i} className="bg-black/50 border border-gray-700 rounded p-3 flex justify-between items-center">
+                                                    <div>
+                                                        <div className="text-[#fed7aa] font-bold">{a.name}</div>
+                                                        <div className="text-gray-400 text-xs">{a.role}</div>
+                                                        <div className="text-gray-500 text-xs mt-1">{a.provider}/{a.model}</div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="font-pixel text-neonBlue text-lg">{a.memoryCount}</div>
+                                                        <div className="text-gray-500 text-xs">memories</div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* ดู Memory */}
+                                    {showPanel === 'memory' && (
+                                        <div className="flex flex-col gap-4">
+                                            {Object.keys(allMemory).length === 0 && <div className="text-gray-400 font-pixel">กำลังโหลด...</div>}
+                                            {Object.entries(allMemory).map(([name, mems]) => {
+                                                const arr = Array.isArray(mems) ? mems : [];
+                                                return (
+                                                <div key={name} className="bg-black/50 border border-gray-700 rounded p-3">
+                                                    <div className="text-neonOrange font-pixel text-lg mb-2">{name} ({arr.length} ความจำ)</div>
+                                                    {arr.length === 0 && <div className="text-gray-500 text-xs">(ยังไม่มี feedback)</div>}
+                                                    {arr.map((m, i) => (
+                                                        <div key={i} className="text-xs text-gray-300 mb-1 pl-2 border-l-2 border-gray-600">
+                                                            <span className="text-gray-500">{m.date ? m.date.slice(0,10) : ''}</span>{' '}
+                                                            <span className="text-neonBlue">[{m.from}]</span>{' '}
+                                                            {m.feedback}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+
+                                    {/* คุยกับ PM */}
+                                    {showPanel === 'chat' && (
+                                        <div className="flex flex-col gap-3 h-full">
+                                            <div className="text-gray-500 text-xs">พิมพ์สั่ง PM ได้เลย เช่น "สอนนักเขียนว่า caption ห้ามยาวเกิน 3 บรรทัด" หรือ "สรุปสถานะทีมหน่อย"</div>
+
+                                            {/* Chat messages */}
+                                            <div className="flex-1 overflow-y-auto bg-black/60 border border-gray-700 rounded p-3 flex flex-col gap-2 min-h-[200px] max-h-[400px]">
+                                                {pmChatLogs.length === 0 && <div className="text-gray-500 text-sm text-center mt-8">เริ่มคุยกับ PM ได้เลย</div>}
+                                                {pmChatLogs.map((msg, i) => (
+                                                    <div key={i} className={`flex ${msg.from === 'admin' ? 'justify-end' : 'justify-start'}`}>
+                                                        <div className={`max-w-[80%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap ${msg.from === 'admin' ? 'bg-neonBlue/20 text-neonBlue border border-neonBlue/30' : 'bg-neonOrange/20 text-[#fed7aa] border border-neonOrange/30'}`}>
+                                                            <div className="text-[10px] font-pixel mb-1 opacity-60">{msg.from === 'admin' ? 'แอดมิน' : 'PM (AI)'}</div>
+                                                            {msg.text}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {pmChatLoading && (
+                                                    <div className="text-neonOrange font-pixel text-sm animate-pulse">PM กำลังคิด...</div>
+                                                )}
+                                            </div>
+
+                                            {/* Input */}
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={pmChatInput}
+                                                    onChange={e => setPmChatInput(e.target.value)}
+                                                    onKeyDown={e => e.key === 'Enter' && handlePmChat()}
+                                                    placeholder="พิมพ์ข้อความถึง PM..."
+                                                    className="flex-1 bg-black/80 border border-gray-600 text-white p-2 rounded font-pixel"
+                                                    disabled={pmChatLoading}
+                                                />
+                                                <button
+                                                    onClick={handlePmChat}
+                                                    disabled={pmChatLoading || !pmChatInput.trim()}
+                                                    className="px-4 py-2 rounded font-pixel border-2 border-neonOrange text-neonOrange hover:bg-neonOrange/20 disabled:opacity-30 transition-all">
+                                                    ส่ง
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* === Pipeline Output Modal === */}
+                    {pipelineOutput && (
+                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setPipelineOutput('')}>
+                            <div className="panel panel-green w-full max-w-3xl max-h-[80vh] flex flex-col p-6 pt-8" onClick={e => e.stopPropagation()}>
+                                <div className="panel-header text-neonGreen">PIPELINE OUTPUT</div>
+                                <button onClick={() => setPipelineOutput('')} className="absolute top-2 right-4 text-gray-400 hover:text-white text-xl font-bold">✕</button>
+                                <pre className="flex-1 overflow-y-auto bg-black/80 border border-gray-700 rounded p-4 text-xs text-green-300 font-mono whitespace-pre-wrap mt-2">
+                                    {pipelineOutput}
+                                </pre>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* === Pending Posts (รอตรวจ) === */}
+                    {pendingPosts.length > 0 && (
+                        <div className="fixed bottom-4 right-4 z-40 w-96 max-h-[60vh] overflow-y-auto panel panel-orange p-4 pt-8 shadow-2xl">
+                            <div className="panel-header text-neonOrange">รอตรวจ ({pendingPosts.length})</div>
+                            {pendingPosts.map(function(p) {
+                                return React.createElement('div', { key: p.id, className: 'bg-black/60 border border-gray-700 rounded p-3 mb-2' },
+                                    React.createElement('div', { className: 'text-[10px] text-gray-500 mb-1' }, p.time + ' | #' + p.id),
+                                    p.items.map(function(item, j) {
+                                        return React.createElement('div', { key: j, className: 'mb-2' },
+                                            React.createElement('div', { className: 'text-sm font-bold ' + (item.mood === 'fail' ? 'text-red-400' : 'text-neonGreen') }, item.headline),
+                                            React.createElement('div', { className: 'text-xs text-gray-400 mt-1 line-clamp-3' }, item.caption)
+                                        );
+                                    }),
+                                    React.createElement('div', { className: 'flex gap-2 mt-2' },
+                                        React.createElement('button', {
+                                            onClick: function() { approvePending(p.id); },
+                                            className: 'flex-1 py-1 rounded font-pixel text-sm border-2 border-green-500 text-green-400 bg-green-500/10 hover:bg-green-500/30'
+                                        }, 'อนุมัติ'),
+                                        React.createElement('button', {
+                                            onClick: function() { rejectPending(p.id); },
+                                            className: 'flex-1 py-1 rounded font-pixel text-sm border-2 border-red-500 text-red-400 bg-red-500/10 hover:bg-red-500/30'
+                                        }, 'ไม่เอา')
+                                    )
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             );
         };
