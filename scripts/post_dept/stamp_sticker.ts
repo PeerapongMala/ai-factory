@@ -19,19 +19,37 @@ if (!existsSync(OUTPUT_DIR)) mkdirSync(OUTPUT_DIR, { recursive: true });
 // ติดตั้ง font ไทยให้ fontconfig หาเจอ (Railway ไม่มี Thai font)
 const FONTS_DIR = join(__dirname, "../../assets/fonts");
 try {
+  // สร้าง fontconfig ใน tmp ชี้ไปที่ fonts ของเรา (ไม่ต้อง root permission)
+  const fcDir = join(__dirname, "../../tmp/fontconfig");
+  const fcConf = join(fcDir, "fonts.conf");
+  const fcCache = join(fcDir, "cache");
+  mkdirSync(fcDir, { recursive: true });
+  mkdirSync(fcCache, { recursive: true });
+  const conf = `<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<fontconfig>
+  <dir>${FONTS_DIR}</dir>
+  <cachedir>${fcCache}</cachedir>
+  <match target="pattern">
+    <test name="family"><string>sans-serif</string></test>
+    <edit name="family" mode="prepend"><string>Noto Sans</string></edit>
+  </match>
+  <match target="pattern">
+    <test name="family"><string>Sans</string></test>
+    <edit name="family" mode="prepend"><string>Noto Sans</string></edit>
+  </match>
+</fontconfig>`;
+  const { writeFileSync: wf } = require("fs");
+  wf(fcConf, conf);
+  // ตั้ง env ให้ fontconfig ใช้ config ของเรา
+  process.env.FONTCONFIG_FILE = fcConf;
+  process.env.FONTCONFIG_PATH = fcDir;
+
   if (process.platform === "linux") {
-    // copy font ไปที่ system font dir
-    const sysFont = "/usr/local/share/fonts";
-    execSync(`mkdir -p ${sysFont} && cp -f ${FONTS_DIR}/*.ttf ${sysFont}/ 2>/dev/null || true`, { timeout: 5000 });
-    // สร้าง fontconfig ถ้าไม่มี
-    const fcConf = "/etc/fonts/fonts.conf";
-    if (!existsSync(fcConf)) {
-      const minConf = `<?xml version="1.0"?><!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd"><fontconfig><dir>${sysFont}</dir><dir>${FONTS_DIR}</dir></fontconfig>`;
-      execSync(`mkdir -p /etc/fonts && echo '${minConf}' > ${fcConf} 2>/dev/null || true`, { timeout: 5000 });
-    }
     execSync("fc-cache -fv 2>/dev/null || true", { timeout: 10000 });
-    const fonts = execSync("fc-list :lang=th 2>/dev/null || echo 'no Thai fonts'", { timeout: 5000 }).toString().trim();
-    console.log(`[Font] Thai fonts: ${fonts.split('\n').length > 1 ? fonts.split('\n').length + ' found' : fonts}`);
+    const fonts = execSync("fc-list 2>/dev/null || echo 'no fonts'", { timeout: 5000 }).toString().trim();
+    const thaiCount = fonts.split('\n').filter((l: string) => l.includes('Noto') || l.includes('Thai')).length;
+    console.log(`[Font] Noto fonts found: ${thaiCount}`);
   }
 } catch (e: any) { console.log("[Font] Setup error:", e.message); }
 
