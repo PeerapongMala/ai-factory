@@ -8,12 +8,22 @@
 import sharp from "sharp";
 import { join } from "path";
 import { existsSync, mkdirSync, readFileSync } from "fs";
+import { execSync } from "child_process";
 
 const STICKER_GOOD = join(__dirname, "../../assets/sticker Pang good rm bg.png");
 const STICKER_FAIL = join(__dirname, "../../assets/sticker Pang fail rm bg.png");
 const OUTPUT_DIR = join(__dirname, "../../tmp");
 
 if (!existsSync(OUTPUT_DIR)) mkdirSync(OUTPUT_DIR, { recursive: true });
+
+// Rebuild font cache on Linux (Railway) เพื่อให้ Pango หา Thai font เจอ
+try {
+  if (process.platform === "linux") {
+    execSync("fc-cache -fv 2>/dev/null || true", { timeout: 10000 });
+    const fonts = execSync("fc-list :lang=th 2>/dev/null || echo 'no Thai fonts'", { timeout: 5000 }).toString().trim();
+    console.log(`[Font] Thai fonts: ${fonts.split('\n').length > 1 ? fonts.split('\n').length + ' found' : fonts}`);
+  }
+} catch { /* ignore */ }
 
 async function createTextBuffer(text: string, maxWidth: number): Promise<Buffer> {
   const escaped = text

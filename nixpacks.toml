@@ -1,2 +1,5 @@
 [phases.setup]
-aptPkgs = ["fonts-thai-tlwg", "fonts-noto-color-emoji"]
+aptPkgs = ["fonts-thai-tlwg", "fonts-noto-cjk", "fonts-noto-color-emoji", "fontconfig", "libfontconfig1"]
+
+[phases.build]
+cmds = ["fc-cache -fv || true"]
