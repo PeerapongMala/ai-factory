@@ -83,6 +83,7 @@
             font-family: 'VT323', monospace;
             letter-spacing: 2px;
             text-shadow: 0 0 5px currentColor;
+            z-index: 10;
         }
 
         /* Status Dots */
@@ -403,8 +404,19 @@
                 try {
                     const res = await fetch(API_BASE + '/api/tokens');
                     const data = await res.json();
-                    setTokenData(data);
-                } catch(e) { /* ignore */ }
+                    if (Array.isArray(data) && data.length > 0) setTokenData(data);
+                    else if (tokenData.length === 0) setTokenData([
+                        { name: 'Mistral Large', role: 'PM + นักเขียน', status: 'checking', tier: 'FREE', color: 'orange' },
+                        { name: 'Ayrshare', role: 'โพสต์ FB + IG', status: 'checking', tier: 'FREE', color: 'blue' },
+                        { name: 'RSS Feeds', role: 'นักข่าว', status: 'active', tier: 'FREE', color: 'teal' },
+                    ]);
+                } catch(e) {
+                    if (tokenData.length === 0) setTokenData([
+                        { name: 'Mistral Large', role: 'PM + นักเขียน', status: 'offline', tier: 'FREE', color: 'orange' },
+                        { name: 'Ayrshare', role: 'โพสต์ FB + IG', status: 'offline', tier: 'FREE', color: 'blue' },
+                        { name: 'RSS Feeds', role: 'นักข่าว', status: 'active', tier: 'FREE', color: 'teal' },
+                    ]);
+                }
             };
 
             // Fetch agents list
@@ -626,7 +638,7 @@
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-0" style={{ height: 'calc(100vh - 140px)', maxHeight: 'calc(100vh - 140px)' }}>
                         
                         {/* LEFT: Team Status */}
-                        <div className="panel panel-blue col-span-1 lg:col-span-3 flex flex-col p-4 pt-6 min-h-0 overflow-hidden">
+                        <div className="panel panel-blue col-span-1 lg:col-span-3 flex flex-col p-4 pt-6 min-h-0">
                             <div className="panel-header text-neonBlue">TEAM STATUS</div>
                             <div className="flex flex-col gap-3 overflow-y-auto pr-2 mb-4 flex-1">
                                 {['Core', 'Post', 'Reels'].map(deptName => (
@@ -704,7 +716,7 @@
                         <div className="col-span-1 lg:col-span-6 flex flex-col gap-5 min-h-0">
                             
                             {/* Top: Central Viz */}
-                            <div className="panel panel-orange flex-1 p-4 pt-8 flex flex-col justify-center items-center relative overflow-hidden bg-black/40">
+                            <div className="panel panel-orange flex-1 p-4 pt-8 flex flex-col justify-center items-center relative bg-black/40">
                                 <div className="panel-header text-neonOrange">COMMAND CENTER</div>
                                 
                                 {/* Pseudo Graphic Representation */}
