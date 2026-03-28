@@ -25,7 +25,7 @@ async function createTextBuffer(text: string, maxWidth: number): Promise<Buffer>
   try {
     const textBuf = await sharp({
       text: {
-        text: `<span foreground="white" font_desc="Sans Bold 48">${escaped}</span>`,
+        text: `<span foreground="white" font_desc="Sans Bold 64">${escaped}</span>`,
         rgba: true,
         width: maxWidth,
         align: "left",
@@ -37,8 +37,8 @@ async function createTextBuffer(text: string, maxWidth: number): Promise<Buffer>
     // Fallback SVG → แปลงเป็น PNG ผ่าน sharp
     const trimmed = text.length > 60 ? text.slice(0, 57) + "..." : text;
     const esc2 = trimmed.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const svg = `<svg width="${maxWidth}" height="120" xmlns="http://www.w3.org/2000/svg">
-      <text x="0" y="50" font-family="sans-serif" font-size="48" font-weight="bold"
+    const svg = `<svg width="${maxWidth}" height="160" xmlns="http://www.w3.org/2000/svg">
+      <text x="0" y="70" font-family="sans-serif" font-size="64" font-weight="bold"
         fill="white">${esc2}</text>
     </svg>`;
     return await sharp(Buffer.from(svg)).png().toBuffer();
@@ -53,9 +53,9 @@ async function createOverlayText(headline: string, summary: string, maxWidth: nu
   const sumEsc = esc(summary);
 
   try {
-    // ตัด summary ให้สั้น (max 80 ตัวอักษร)
-    const shortSum = sumEsc.length > 80 ? sumEsc.slice(0, 77) + '...' : sumEsc;
-    const pango = `<span foreground="white" font_desc="Sans Bold 48">${headEsc}</span>\n<span foreground="#cccccc" font_desc="Sans 32">${shortSum}</span>`;
+    // ตัด summary ให้สั้น (max 60 ตัวอักษร)
+    const shortSum = sumEsc.length > 60 ? sumEsc.slice(0, 57) + '...' : sumEsc;
+    const pango = `<span foreground="white" font_desc="Sans Bold 64">${headEsc}</span>\n<span foreground="#cccccc" font_desc="Sans 40">${shortSum}</span>`;
     const textBuf = await sharp({
       text: {
         text: pango,
@@ -79,7 +79,7 @@ export async function stampSticker(
   summary?: string
 ): Promise<string> {
   const SIZE = 1080;
-  const BAR_H = summary ? 300 : 216;         // แถบดำใหญ่ขึ้นถ้ามี summary
+  const BAR_H = summary ? 380 : 300;         // แถบดำใหญ่ขึ้น ให้อ่าน text ได้ชัด
   const IMAGE_H = SIZE - BAR_H;              // รูปข่าวส่วนที่เหลือ
 
   // 1. ดาวน์โหลดรูปข่าว
@@ -92,17 +92,18 @@ export async function stampSticker(
     .resize(SIZE, IMAGE_H, { fit: "cover" })
     .toBuffer();
 
-  // 3. Resize สติกเกอร์น้องปัง — วางขวาล่าง
-  const stickerSize = Math.min(BAR_H - 20, 220);
+  // 3. Resize สติกเกอร์น้องปัง — วางซ้ายล่าง ใหญ่ขึ้น
+  const stickerSize = Math.min(BAR_H - 20, 320);
   const stickerPath = mood === "good" ? STICKER_GOOD : STICKER_FAIL;
   const sticker = await sharp(stickerPath)
     .resize(stickerSize, stickerSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .toBuffer();
 
-  // 4. สร้าง text overlay (headline สีทอง + summary สีขาว ถ้ามี)
-  const textPadLeft = 30;
-  const stickerW = stickerSize + 20;
-  const textMaxWidth = SIZE - textPadLeft - stickerW - 10;
+  // 4. สร้าง text overlay — สติกเกอร์ซ้าย text ขวา
+  const stickerPadLeft = 10;
+  const stickerW = stickerSize + stickerPadLeft + 10;
+  const textPadLeft = stickerW + 10;
+  const textMaxWidth = SIZE - textPadLeft - 20;
 
   let textBuf: Buffer;
   if (summary) {
@@ -121,10 +122,10 @@ export async function stampSticker(
   })
     .composite([
       { input: photo, left: 0, top: 0 },
-      // text ซ้าย (กลางแถบดำแนวตั้ง)
+      // สติกเกอร์ซ้ายล่าง
+      { input: sticker, left: stickerPadLeft, top: IMAGE_H + Math.round((BAR_H - stickerSize) / 2) },
+      // text ขวาของสติกเกอร์ (กลางแถบดำแนวตั้ง)
       { input: textBuf, left: textPadLeft, top: IMAGE_H + Math.round((BAR_H - textH) / 2) },
-      // สติกเกอร์ขวาล่าง
-      { input: sticker, left: SIZE - stickerSize - 10, top: IMAGE_H + Math.round((BAR_H - stickerSize) / 2) },
     ])
     .jpeg({ quality: 90 })
     .toFile(outputPath);
