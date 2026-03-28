@@ -16,14 +16,24 @@ const OUTPUT_DIR = join(__dirname, "../../tmp");
 
 if (!existsSync(OUTPUT_DIR)) mkdirSync(OUTPUT_DIR, { recursive: true });
 
-// Rebuild font cache on Linux (Railway) เพื่อให้ Pango หา Thai font เจอ
+// ติดตั้ง font ไทยให้ fontconfig หาเจอ (Railway ไม่มี Thai font)
+const FONTS_DIR = join(__dirname, "../../assets/fonts");
 try {
   if (process.platform === "linux") {
+    // copy font ไปที่ system font dir
+    const sysFont = "/usr/local/share/fonts";
+    execSync(`mkdir -p ${sysFont} && cp -f ${FONTS_DIR}/*.ttf ${sysFont}/ 2>/dev/null || true`, { timeout: 5000 });
+    // สร้าง fontconfig ถ้าไม่มี
+    const fcConf = "/etc/fonts/fonts.conf";
+    if (!existsSync(fcConf)) {
+      const minConf = `<?xml version="1.0"?><!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd"><fontconfig><dir>${sysFont}</dir><dir>${FONTS_DIR}</dir></fontconfig>`;
+      execSync(`mkdir -p /etc/fonts && echo '${minConf}' > ${fcConf} 2>/dev/null || true`, { timeout: 5000 });
+    }
     execSync("fc-cache -fv 2>/dev/null || true", { timeout: 10000 });
     const fonts = execSync("fc-list :lang=th 2>/dev/null || echo 'no Thai fonts'", { timeout: 5000 }).toString().trim();
     console.log(`[Font] Thai fonts: ${fonts.split('\n').length > 1 ? fonts.split('\n').length + ' found' : fonts}`);
   }
-} catch { /* ignore */ }
+} catch (e: any) { console.log("[Font] Setup error:", e.message); }
 
 async function createTextBuffer(text: string, maxWidth: number): Promise<Buffer> {
   const escaped = text
