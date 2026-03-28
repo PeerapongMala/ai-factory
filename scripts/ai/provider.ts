@@ -145,8 +145,8 @@ export async function generateWithRetry(
     try {
       return await generateContent(config, req);
     } catch (err: any) {
-      const is429 = err.message?.includes("429") || err.message?.includes("quota") || err.message?.includes("rate");
-      if (is429 && attempt < maxRetries) {
+      const isRetryable = err.message?.includes("429") || err.message?.includes("529") || err.message?.includes("overloaded") || err.message?.includes("quota") || err.message?.includes("rate") || err.message?.includes("503") || err.message?.includes("500");
+      if (isRetryable && attempt < maxRetries) {
         console.error(`[AI] Rate limited (${config.provider}). Retry ${attempt}/${maxRetries} in ${delayMs / 1000}s...`);
         await Bun.sleep(delayMs);
         continue;

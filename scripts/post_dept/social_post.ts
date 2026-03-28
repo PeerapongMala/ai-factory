@@ -106,7 +106,7 @@ async function run() {
                 const html = await pageRes.text();
                 const ogMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
                     || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-                if (ogMatch) {
+                if (ogMatch?.[1]) {
                     rawImageUrl = ogMatch[1];
                     console.error(`[Image] og:image จากข่าว: ${rawImageUrl}`);
                 }
@@ -136,14 +136,24 @@ async function run() {
             }
         }
 
+        // === กรอง URL ที่ไม่ใช่รูปภาพออก (YouTube, video embeds) ===
+        if (rawImageUrl && (rawImageUrl.includes('youtube.com') || rawImageUrl.includes('youtu.be') || rawImageUrl.includes('/embed/'))) {
+            console.error(`[Image] ข้าม URL วิดีโอ: ${rawImageUrl}`);
+            rawImageUrl = undefined;
+        }
+
         // === แปะสติกเกอร์น้องปัง + headline ===
         let finalImageUrl = rawImageUrl;
         if (rawImageUrl) {
             try {
                 const mood = scriptJson.mood === "fail" ? "fail" : "good";
                 const headline = scriptJson.headline || item.source_article?.title || "";
+                // สร้าง summary จาก caption
+                const capStr = typeof caption === "string" ? caption : "";
+                const summaryLines = capStr.split("\n").filter((l: string) => l.trim() && !l.includes("ติดตามเพจ") && !l.includes("เกมปังv2")).slice(0, 3);
+                const summary = summaryLines.join("\n").slice(0, 200);
                 const idx = results.length;
-                const localPath = await stampSticker(rawImageUrl, mood, headline, `post_${idx}.jpg`);
+                const localPath = await stampSticker(rawImageUrl, mood, headline, `post_${idx}.jpg`, summary);
                 finalImageUrl = await uploadImage(localPath);
                 console.error(`[Sticker] ${mood} + headline → ${finalImageUrl}`);
             } catch (e: any) {
@@ -180,8 +190,17 @@ async function run() {
             if (postRes.status === 429 && FB_PAGE_TOKEN) {
                 console.error("[Ayrshare] quota หมด → สลับไป Facebook API");
                 usedProvider = "facebook";
-            } else if (!postRes.ok && !postResponseJson.postIds?.some((p: any) => p.status === "success")) {
-                throw new Error(`Ayrshare API Error: ${postRes.status} - ${JSON.stringify(postResponseJson)}`);
+            } else if (!postRes.ok) {
+                const hasSuccess = Array.isArray(postResponseJson.postIds) && postResponseJson.postIds.some((p: any) => p.status === "success");
+                if (!hasSuccess) {
+                    // ลอง fallback ไป Facebook ก่อน throw
+                    if (FB_PAGE_TOKEN) {
+                        console.error(`[Ayrshare] Error ${postRes.status} → fallback Facebook API`);
+                        usedProvider = "facebook";
+                    } else {
+                        throw new Error(`Ayrshare API Error: ${postRes.status} - ${JSON.stringify(postResponseJson)}`);
+                    }
+                }
             } else {
                 postResult = {
                     status: "PUBLISHED",

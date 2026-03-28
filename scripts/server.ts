@@ -6,7 +6,7 @@
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { loadAgent, listAgents, listMemory, train, getMemoryPrompt } from "./agents/memory";
-import { generateContent, type ProviderConfig } from "./ai/provider";
+import { generateWithRetry, type ProviderConfig } from "./ai/provider";
 
 const PORT = 3000;
 const ROOT = join(__dirname, "..");
@@ -185,18 +185,22 @@ const server = Bun.serve({
 
     // POST /api/train — เทรนพนักงาน { agent: "writer.json", feedback: "..." }
     if (path === "/api/train" && req.method === "POST") {
-      const body = await req.json();
-      const { agent, feedback } = body;
-      if (!agent || !feedback) {
-        return json({ error: "ต้องส่ง agent และ feedback" }, 400);
+      try {
+        const body = await req.json();
+        const { agent, feedback } = body;
+        if (!agent || !feedback) {
+          return json({ error: "ต้องส่ง agent และ feedback" }, 400);
+        }
+        const updated = train(agent, feedback, "แอดมิน (Dashboard)");
+        return json({
+          status: "OK",
+          name: updated.name,
+          memoryCount: updated.memory.length,
+          lastFeedback: feedback,
+        });
+      } catch (e: any) {
+        return json({ error: "Train failed: " + e.message }, 500);
       }
-      const updated = train(agent, feedback, "แอดมิน (Dashboard)");
-      return json({
-        status: "OK",
-        name: updated.name,
-        memoryCount: updated.memory.length,
-        lastFeedback: feedback,
-      });
     }
 
     // POST /api/chat — คุยกับ PM (Mistral AI) { message: "..." }
@@ -228,7 +232,7 @@ const server = Bun.serve({
           `\n\n[สถานะทีม]${teamMemory || "\nยังไม่มี feedback"}` +
           `\n\n[โหมดแชท] ตอนนี้แอดมินกำลังคุยกับคุณผ่าน Dashboard ตอบเป็นภาษาไทย สรุปสั้นๆ ถ้าแอดมินสั่งเทรนพนักงาน ให้ตอบ JSON: { "action": "train", "trainTarget": "ชื่อพนักงาน", "trainFeedback": "...", "reply": "ข้อความตอบแอดมิน" } ถ้าแค่คุยทั่วไป ตอบ JSON: { "action": "chat", "reply": "ข้อความตอบ" }`;
 
-        const res = await generateContent(pmConfig, {
+        const res = await generateWithRetry(pmConfig, {
           prompt: message,
           systemPrompt,
           maxTokens: 512,
@@ -263,26 +267,52 @@ const server = Bun.serve({
         writeFileSync(statusFile, "running");
         writeFileSync(logFile, `[${new Date().toISOString()}] Pipeline started...\n`);
 
-        // Fire-and-forget: ไม่รอให้เสร็จ
+        // Fire-and-forget: stream output ทีละบรรทัดแบบ real-time
         const proc = Bun.spawn(["bun", "run", "scripts/pm.ts"], {
           cwd: ROOT,
           stdout: "pipe",
           stderr: "pipe",
         });
 
-        // เก็บ output ใน background
+        const { appendFileSync } = await import("fs");
+
+        // Stream stderr (pm.ts ใช้ console.log → stdout, แต่ sub-process อาจ stderr)
+        const streamToLog = async (stream: ReadableStream<Uint8Array>) => {
+          const reader = stream.getReader();
+          const decoder = new TextDecoder();
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              const text = decoder.decode(value, { stream: true });
+              appendFileSync(logFile, text);
+            }
+          } catch {}
+        };
+
         (async () => {
           try {
-            const out = await new Response(proc.stdout).text();
-            const err = await new Response(proc.stderr).text();
-            const { appendFileSync } = await import("fs");
-            appendFileSync(logFile, out + "\n" + err);
+            // Stream output + รอ process จบ แบบ race กัน
+            const streamDone = Promise.all([
+              streamToLog(proc.stdout as ReadableStream),
+              streamToLog(proc.stderr as ReadableStream),
+            ]);
+            const exited = proc.exited;
+
+            // ถ้า process จบก่อน stream → รอ stream อีก 2 วิ แล้วจบ
+            await Promise.race([
+              streamDone,
+              exited.then(() => new Promise(r => setTimeout(r, 2000))),
+            ]);
             writeFileSync(statusFile, "done");
           } catch (e: any) {
-            const { writeFileSync: ws } = await import("fs");
-            ws(statusFile, "error: " + e.message);
+            appendFileSync(logFile, `\n[ERROR] Pipeline crashed: ${e.message}\n`);
+            writeFileSync(statusFile, "done");
           }
-        })();
+        })().catch((e) => {
+          try { writeFileSync(statusFile, "done"); } catch {}
+          console.error("[Pipeline] Unhandled error:", e);
+        });
 
         return json({ status: "OK", output: "Pipeline เริ่มรันแล้ว กำลังทำงาน..." });
       } catch (e: any) {
@@ -337,9 +367,11 @@ const server = Bun.serve({
               headline: item.generated_script?.headline || item.source_article?.title || "N/A",
               mood: item.generated_script?.mood || "good",
               caption: typeof item.generated_script?.caption === "string"
-                ? item.generated_script.caption.slice(0, 300)
-                : JSON.stringify(item.generated_script?.caption || "").slice(0, 300),
-              image: item.source_article?.image || "",
+                ? item.generated_script.caption
+                : JSON.stringify(item.generated_script?.caption || ""),
+              image: item.preview_image || item.source_article?.image || "",
+              sourceUrl: item.source_article?.link || "",
+              sourceName: item.source_article?.source || "",
             })),
           };
         } catch { return null; }
@@ -347,34 +379,91 @@ const server = Bun.serve({
       return json(pending);
     }
 
-    // POST /api/pending/:id/approve — อนุมัติโพสต์
+    // POST /api/pending/clear — ลบ pending ทั้งหมด
+    if (path === "/api/pending/clear" && req.method === "POST") {
+      const { existsSync: ex, readdirSync, unlinkSync } = await import("fs");
+      const pendingDir = join(ROOT, "tmp", "pending");
+      if (ex(pendingDir)) {
+        for (const f of readdirSync(pendingDir).filter((f: string) => f.endsWith(".json"))) {
+          try { unlinkSync(join(pendingDir, f)); } catch {}
+        }
+      }
+      return json({ status: "OK", msg: "ลบ pending ทั้งหมดแล้ว" });
+    }
+
+    // POST /api/pending/:id/approve?item=0 — อนุมัติโพสต์ (per-item)
     if (path.startsWith("/api/pending/") && path.endsWith("/approve") && req.method === "POST") {
       const id = path.split("/")[3];
+      if (!id || !/^[\w]+$/.test(id)) return json({ error: "Invalid pending ID" }, 400);
+      const itemIdx = parseInt(url.searchParams.get("item") || "-1");
       const pendingFile = join(ROOT, "tmp", "pending", `${id}.json`);
-      const { existsSync: ex, unlinkSync } = await import("fs");
+      const { existsSync: ex, readFileSync: rf, writeFileSync: wf, unlinkSync } = await import("fs");
       if (!ex(pendingFile)) return json({ error: "ไม่เจอ pending นี้" }, 404);
 
       try {
-        const proc = Bun.spawn(["bun", "run", "scripts/post_dept/social_post.ts", pendingFile], {
+        const data = JSON.parse(rf(pendingFile, "utf8"));
+        let toPost = data;
+
+        // ถ้าระบุ item → โพสต์เฉพาะ item นั้น
+        if (itemIdx >= 0 && data.data) {
+          toPost = { ...data, data: [data.data[itemIdx]] };
+          // ลบ item ที่โพสต์แล้วออกจาก file
+          data.data.splice(itemIdx, 1);
+          if (data.data.length === 0) {
+            try { unlinkSync(pendingFile); } catch {}
+          } else {
+            wf(pendingFile, JSON.stringify(data, null, 2));
+          }
+        } else {
+          // ไม่ระบุ item → โพสต์ทั้งหมด → ลบ file
+          try { unlinkSync(pendingFile); } catch {}
+        }
+
+        // เขียน tmp file สำหรับ social_post
+        const tmpFile = join(ROOT, "tmp", `approve_${id}_${itemIdx}.json`);
+        wf(tmpFile, JSON.stringify(toPost, null, 2));
+
+        const proc = Bun.spawn(["bun", "run", "scripts/post_dept/social_post.ts", tmpFile], {
           cwd: ROOT, stdout: "pipe", stderr: "pipe",
         });
         const out = await new Response(proc.stdout).text();
         const err = await new Response(proc.stderr).text();
-        try { unlinkSync(pendingFile); } catch {}
+        try { unlinkSync(tmpFile); } catch {}
         return json({ status: "OK", msg: "โพสต์แล้ว", output: out || err });
       } catch (e: any) {
         return json({ status: "FAILED", error: e.message }, 500);
       }
     }
 
-    // POST /api/pending/:id/reject — ไม่อนุมัติ ลบทิ้ง
+    // POST /api/pending/:id/reject?item=0 — ไม่อนุมัติ (per-item)
     if (path.startsWith("/api/pending/") && path.endsWith("/reject") && req.method === "POST") {
       const id = path.split("/")[3];
+      if (!id || !/^[\w]+$/.test(id)) return json({ error: "Invalid pending ID" }, 400);
+      const itemIdx = parseInt(url.searchParams.get("item") || "-1");
       const pendingFile = join(ROOT, "tmp", "pending", `${id}.json`);
-      const { existsSync: ex, unlinkSync } = await import("fs");
+      const { existsSync: ex, readFileSync: rf, writeFileSync: wf, unlinkSync } = await import("fs");
       if (!ex(pendingFile)) return json({ error: "ไม่เจอ pending นี้" }, 404);
-      try { unlinkSync(pendingFile); } catch {}
-      return json({ status: "OK", msg: "ลบแล้ว" });
+
+      try {
+        if (itemIdx >= 0) {
+          // ลบเฉพาะ item
+          const data = JSON.parse(rf(pendingFile, "utf8"));
+          if (data.data) {
+            data.data.splice(itemIdx, 1);
+            if (data.data.length === 0) {
+              try { unlinkSync(pendingFile); } catch {}
+            } else {
+              wf(pendingFile, JSON.stringify(data, null, 2));
+            }
+          }
+        } else {
+          // ลบทั้ง batch
+          try { unlinkSync(pendingFile); } catch {}
+        }
+        return json({ status: "OK", msg: "ลบแล้ว" });
+      } catch (e: any) {
+        return json({ error: "ลบไม่ได้: " + e.message }, 500);
+      }
     }
 
     // POST /api/scheduler — เปิด/ปิด scheduler

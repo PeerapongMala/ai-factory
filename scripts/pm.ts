@@ -5,7 +5,7 @@
  */
 import { $ } from "bun";
 import { train, listMemory, listAgents, loadAgent, getMemoryPrompt } from "./agents/memory";
-import { generateContent, type ProviderConfig } from "./ai/provider";
+import { generateWithRetry, type ProviderConfig } from "./ai/provider";
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -66,7 +66,7 @@ interface PMDecision {
 
 async function pmThink(situation: string): Promise<PMDecision> {
   try {
-    const res = await generateContent(pmProviderConfig, {
+    const res = await generateWithRetry(pmProviderConfig, {
       prompt: situation,
       systemPrompt: pmSystemPrompt,
       maxTokens: pmAgent.generationConfig?.maxOutputTokens || 512,
@@ -179,9 +179,26 @@ async function pmRun() {
   await Bun.write(step2File, content.output);
 
   // 3. PM ตรวจ content ด้วย AI — เช็คคุณภาพตาม feedback ที่เคยได้
-  const contentPreview = content.output.slice(0, 1500);
+  // สร้าง preview ที่อ่านง่ายสำหรับ PM (ไม่ใช่ raw JSON)
+  const contentData = JSON.parse(content.output);
+  const contentItems = contentData.data || [];
+  let contentPreview = "";
+  for (let i = 0; i < contentItems.length; i++) {
+    const item = contentItems[i];
+    const sc = item.generated_script || {};
+    const src = item.source_article || {};
+    const captionText = typeof sc.caption === "string" ? sc.caption : JSON.stringify(sc.caption || "");
+    contentPreview += `\n--- โพสต์ที่ ${i + 1} ---`;
+    contentPreview += `\nหัวข้อ: ${sc.headline || src.title || "N/A"}`;
+    contentPreview += `\nอารมณ์: ${sc.mood || "N/A"}`;
+    contentPreview += `\nแหล่งข่าว: ${src.source || "N/A"} (${src.link || "N/A"})`;
+    contentPreview += `\nมีรูป: ${src.image ? "มี" : "ไม่มี"}`;
+    contentPreview += `\nCaption:\n${captionText.slice(0, 500)}`;
+    contentPreview += "\n";
+  }
+
   const reviewDecision = await pmThink(
-    `นักเขียนส่ง content มาแล้ว ช่วยตรวจดูหน่อย:\n${contentPreview}\n\nเช็คว่า:\n- caption อ่านง่ายมั้ย\n- ตรงตาม feedback ที่เคยได้มั้ย (ดู memory)\n- ควร proceed โพสต์เลย หรือ train นักเขียนเพิ่ม?\n\nถ้า action=train ต้องส่ง trainTarget (เช่น "นักเขียน") และ trainFeedback (คำสั่งที่จะสอน) ด้วย`
+    `นักเขียนส่ง content มาแล้ว ${contentItems.length} โพสต์ ช่วยตรวจดูหน่อย:\n${contentPreview}\n\nเช็คว่า:\n- caption อ่านง่ายมั้ย ภาษาไทยถูกต้องมั้ย\n- มี emoji มั้ย (ห้ามใส่ emoji)\n- หัวข้อกับเนื้อหาตรงกันมั้ย\n- ตรงตาม feedback ที่เคยได้มั้ย (ดู memory)\n- ควร proceed โพสต์เลย หรือ train นักเขียนเพิ่ม?\n\nถ้า action=train ต้องส่ง trainTarget (เช่น "นักเขียน") และ trainFeedback (คำสั่งที่จะสอน) ด้วย`
   );
   log("PM", `AI ตรวจ content: ${reviewDecision.action} — ${reviewDecision.reason}`);
 
@@ -240,7 +257,7 @@ async function pmRun() {
           const html = await pageRes.text();
           const ogMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
             || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-          if (ogMatch) rawImageUrl = ogMatch[1];
+          if (ogMatch?.[1]) rawImageUrl = ogMatch[1];
         } catch {}
       }
 
@@ -254,11 +271,21 @@ async function pmRun() {
         }
       }
 
+      // กรอง URL ที่ไม่ใช่รูปภาพออก (YouTube, video embeds)
+      if (rawImageUrl && (rawImageUrl.includes('youtube.com') || rawImageUrl.includes('youtu.be') || rawImageUrl.includes('/embed/'))) {
+        log("กราฟิก", `ข้าม URL วิดีโอ: ${rawImageUrl}`);
+        rawImageUrl = undefined;
+      }
+
       if (rawImageUrl) {
         try {
           const mood = sc.mood === "fail" ? "fail" : "good";
           const headline = sc.headline || item.source_article?.title || "";
-          const localPath = await stampSticker(rawImageUrl, mood, headline, `pending_${i}.jpg`);
+          // สร้าง summary จาก caption (2-3 บรรทัดแรก ไม่รวม CTA)
+          const capStr = typeof sc.caption === "string" ? sc.caption : "";
+          const summaryLines = capStr.split("\n").filter((l: string) => l.trim() && !l.includes("ติดตามเพจ") && !l.includes("เกมปังv2")).slice(0, 3);
+          const summary = summaryLines.join("\n").slice(0, 200);
+          const localPath = await stampSticker(rawImageUrl, mood, headline, `pending_${i}.jpg`, summary);
           const uploadedUrl = await uploadImage(localPath);
           item.preview_image = uploadedUrl;
           log("กราฟิก", `แปะสติกเกอร์ #${i + 1}: ${mood} → ${uploadedUrl}`);
@@ -271,7 +298,7 @@ async function pmRun() {
 
     const pendingDir = join(__dirname, "../tmp/pending");
     mkdirSync(pendingDir, { recursive: true });
-    const pendingId = Date.now().toString();
+    const pendingId = Date.now().toString() + Math.random().toString(36).slice(2, 6);
     const pendingFile = join(pendingDir, `${pendingId}.json`);
     writeFileSync(pendingFile, JSON.stringify(contentData, null, 2));
 

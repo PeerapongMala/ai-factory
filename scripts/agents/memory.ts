@@ -59,11 +59,19 @@ export function getMemoryPrompt(agentFile: string): string {
   const config = loadAgent(agentFile);
   if (config.memory.length === 0) return "";
 
-  const memories = config.memory
-    .map(m => `- [${m.from}] ${m.feedback}`)
+  // ส่ง feedback จากแอดมินก่อน + ล่าสุด 10 อัน (ไม่ให้ prompt ยาวเกิน)
+  const adminFeedbacks = config.memory.filter(m => m.from && m.from.includes('แอดมิน'));
+  const otherFeedbacks = config.memory.filter(m => !m.from || !m.from.includes('แอดมิน'));
+  const selected = [...adminFeedbacks, ...otherFeedbacks.slice(-10)];
+
+  const memories = selected
+    .map(m => {
+      const fb = typeof m.feedback === 'string' ? m.feedback : JSON.stringify(m.feedback);
+      return `- [${m.from}] ${fb}`;
+    })
     .join("\n");
 
-  return `\n\n[ความจำจาก feedback ที่เคยได้รับ - ต้องทำตาม]\n${memories}`;
+  return `\n\n[ความจำจาก feedback ที่เคยได้รับ - ต้องทำตามอย่างเคร่งครัด]\n${memories}`;
 }
 
 // ดู memory ทั้งหมดของพนักงาน

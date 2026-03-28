@@ -241,7 +241,7 @@
         }
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col p-4 md:p-6 overflow-hidden">
+<body class="min-h-screen w-screen flex flex-col p-4 md:p-6 overflow-auto">
     <div id="root" class="h-full flex flex-col w-full max-w-[1600px] mx-auto gap-6 relative"></div>
 
     <script type="text/babel">
@@ -259,30 +259,9 @@
             { id: 'pexel', name: 'หาคลิป (Pexels)', image: 'assets/avatars/researcher.png', dept: 'Reels' }
         ];
 
-        // Simulated Flow
-        const DEMO_FLOW = [
-            { time: 500, agent: 'scout', status: '[ACTIVE]', dot: 'dot-green', progress: 100, msg: 'กำลังดึงข่าวจาก RSS...' },
-            { time: 2000, agent: 'scout', status: '[DONE]', dot: 'dot-green', progress: 40, msg: 'ได้ข่าวใหม่ 2 ข่าว! ส่งต่อให้นักเขียน...' },
-            { time: 3000, agent: 'guardian', status: '[CHECKING]', dot: 'dot-orange', progress: 60, msg: 'ตรวจสอบ: ไม่ซ้ำ + ข่าวไม่เกิน 24 ชม. ผ่าน!' },
-            { time: 4500, agent: 'brain', status: '[WRITING]', dot: 'dot-green', progress: 80, msg: 'Gemini กำลังเขียน Caption + mascot_mood...' },
-            { time: 6000, agent: 'anti', status: '[RENDERING]', dot: 'dot-orange', progress: 100, msg: 'Creatomate กำลังวาดภาพ 1:1 + แปะน้อง Pang...' },
-            { time: 7500, agent: 'anti', status: '[DONE]', dot: 'dot-green', progress: 80, msg: 'ภาพเสร็จแล้ว! ส่งต่อให้ฝ่ายโพสต์...' },
-            { time: 9000, agent: 'publisher', status: '[POSTING]', dot: 'dot-green', progress: 100, msg: 'กำลังโพสต์ Facebook + Instagram...' },
-            { time: 10000, agent: 'publisher', status: '[DONE]', dot: 'dot-green', progress: 100, msg: '✅ โพสต์สำเร็จ! รอรอบถัดไป 30 นาที' }
-        ];
-
         const App = () => {
             const [time, setTime] = useState('');
-            const [budget, setBudget] = useState(1000);
-            
-            // UI States
-            const [activeFlowIndex, setActiveFlowIndex] = useState(-1);
-            const [isRunning, setIsRunning] = useState(false);
-            const [requiresApproval, setRequiresApproval] = useState(false);
             const [chatInput, setChatInput] = useState('');
-            
-            // Random bar chart heights for visual effect
-            const [chartHeights, setChartHeights] = useState([20, 40, 30, 70, 50, 90, 60]);
 
             // Agent States Array
             const [agents, setAgents] = useState(AI_ROLES.map(r => ({
@@ -299,7 +278,7 @@
             const [pmChatInput, setPmChatInput] = useState('');
             const [pmChatLogs, setPmChatLogs] = useState([]);
             const [pmChatLoading, setPmChatLoading] = useState(false);
-            const [pipelineOutput, setPipelineOutput] = useState('');
+
             const [pipelineRunning, setPipelineRunning] = useState(false);
             const [tokenData, setTokenData] = useState([]);
             const [schedulerOn, setSchedulerOn] = useState(false);
@@ -307,6 +286,9 @@
             const [pendingPosts, setPendingPosts] = useState([]);
             const [analytics, setAnalytics] = useState([]);
             const [showAnalytics, setShowAnalytics] = useState(false);
+            const [rejectingKey, setRejectingKey] = useState(null); // "batchId-itemIdx"
+            const [rejectReason, setRejectReason] = useState('');
+            const [approvingKey, setApprovingKey] = useState(null); // "batchId-itemIdx"
 
             const [chatLogs, setChatLogs] = useState([
                 { sysTime: 'SYS', agent: 'System', msg: 'Pang Game Company v1.1 OS Booted.', isSys: true }
@@ -351,22 +333,48 @@
                 } catch(e) {}
             };
 
-            // Approve pending post
-            const approvePending = async (id) => {
+            // Approve pending post (per-item)
+            const approvePending = async (batchId, itemIdx) => {
+                const key = batchId + '-' + itemIdx;
+                if (approvingKey) return; // ป้องกันกดซ้ำ
+                setApprovingKey(key);
                 try {
-                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'Admin', msg: 'อนุมัติโพสต์ #' + id, isAdmin: true }]);
-                    const res = await fetch(API_BASE + '/api/pending/' + id + '/approve', { method: 'POST' });
+                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'Admin', msg: 'อนุมัติโพสต์ กำลังโพสต์...', isAdmin: true }]);
+                    const res = await fetch(API_BASE + '/api/pending/' + batchId + '/approve?item=' + itemIdx, { method: 'POST' });
                     const data = await res.json();
                     setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'System', msg: data.msg || data.error, isSys: true }]);
                     fetchPending();
-                } catch(e) {}
+                } catch(e) {
+                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'System', msg: 'อนุมัติล้มเหลว: ' + (e.message || 'Unknown error'), isSys: true }]);
+                } finally {
+                    setApprovingKey(null);
+                }
             };
 
-            // Reject pending post
-            const rejectPending = async (id) => {
+            // Reject pending post — step 1: กดไม่เอา → โชว์ช่องเหตุผล (per-item)
+            const startReject = (batchId, itemIdx) => {
+                setRejectingKey(batchId + '-' + itemIdx);
+                setRejectReason('');
+            };
+
+            // Reject pending post — step 2: ส่งเหตุผล → ลบ + เทรนนักเขียน
+            const confirmReject = async (batchId, itemIdx) => {
+                const reason = rejectReason.trim();
+                setRejectingKey(null);
+                setRejectReason('');
                 try {
-                    const res = await fetch(API_BASE + '/api/pending/' + id + '/reject', { method: 'POST' });
-                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'System', msg: 'ลบโพสต์ #' + id, isSys: true }]);
+                    await fetch(API_BASE + '/api/pending/' + batchId + '/reject?item=' + itemIdx, { method: 'POST' });
+                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'Admin', msg: 'ไม่อนุมัติ: ' + (reason || 'ไม่ระบุ'), isAdmin: true }]);
+                    if (reason) {
+                        try {
+                            await fetch(API_BASE + '/api/train', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ agent: 'writer.json', feedback: reason })
+                            });
+                            setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'PM', msg: 'เทรนนักเขียนแล้ว: "' + reason + '"' }]);
+                        } catch(te) {}
+                    }
                     fetchPending();
                 } catch(e) {}
             };
@@ -456,36 +464,103 @@
                 setPmChatLoading(false);
             };
 
-            // Run pipeline (fire-and-forget + poll status)
+            // Run pipeline (fire-and-forget + poll → push to Briefing Room)
+            const lastLogLines = useRef(0);
             const handleRunPipeline = async () => {
                 if (pipelineRunning) return;
                 setPipelineRunning(true);
-                setPipelineOutput('กำลังรัน pipeline...');
+                lastLogLines.current = 0;
+                // ลบ pending เก่าก่อน run ใหม่
+                try { await fetch(API_BASE + '/api/pending/clear', { method: 'POST' }); } catch(e) {}
+                setPendingPosts([]);
                 const now = new Date();
-                setChatLogs(prev => [...prev, { sysTime: `${now.getHours()}:${now.getMinutes()}`, agent: 'Admin', msg: '!run pipeline (REAL)', isAdmin: true }]);
+                setChatLogs(prev => [...prev, { sysTime: `${now.getHours()}:${now.getMinutes()}`, agent: 'Admin', msg: '!run pipeline', isAdmin: true }]);
                 try {
-                    const res = await fetch(API_BASE + '/api/run', { method: 'POST' });
-                    const data = await res.json();
-                    setPipelineOutput(data.output || data.error || 'started');
+                    await fetch(API_BASE + '/api/run', { method: 'POST' });
 
-                    // Poll status ทุก 3 วินาที จนเสร็จ
+                    // Map ชื่อพนักงานใน log → agent id
+                    const ROLE_MAP = {
+                        'PM': null,
+                        'นักข่าว': 'scout',
+                        'นักเขียน': 'brain',
+                        'ตรวจสอบ': 'guardian',
+                        'กราฟิก': 'anti',
+                        'โพสต์': 'publisher',
+                    };
+
+                    // เปิดไฟทุกคนเป็น STANDBY ก่อน
+                    setAgents(prev => prev.map(a => ({ ...a, status: '[STANDBY]', dot: 'dot-gray', msg: 'รอคำสั่ง...' })));
+
+                    // Safety timeout: ถ้า 5 นาทียังไม่เสร็จ reset ปุ่ม
+                    const safetyTimeout = setTimeout(() => {
+                        setPipelineRunning(false);
+                        setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'System', msg: 'Pipeline timeout — reset ปุ่ม', isSys: true }]);
+                        setAgents(prev => prev.map(a => ({ ...a, status: '[SLEEP]', dot: 'dot-gray', msg: 'Offline' })));
+                    }, 5 * 60 * 1000);
+
+                    // Poll status ทุก 3 วินาที → push log ใหม่เข้า chat + อัพเดต agent
                     const poll = setInterval(async () => {
                         try {
                             const sr = await fetch(API_BASE + '/api/run/status');
                             const st = await sr.json();
-                            if (st.status !== 'running') {
-                                clearInterval(poll);
-                                setPipelineRunning(false);
-                                setPipelineOutput(st.log || 'Pipeline เสร็จแล้ว');
-                                setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'System', msg: 'Pipeline เสร็จแล้ว ดู output ใน panel', isSys: true }]);
-                            } else {
-                                setPipelineOutput(st.log || 'กำลังทำงาน...');
+                            const lines = (st.log || '').split('\n').filter(l => l.trim());
+                            const newLines = lines.slice(lastLogLines.current);
+                            lastLogLines.current = lines.length;
+                            for (const line of newLines) {
+                                const m = line.match(/\[.*?\]\s*\[(.+?)\]\s*(.*)/);
+                                if (m) {
+                                    const role = m[1];
+                                    const msg = m[2];
+                                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: role, msg: msg }]);
+
+                                    // PM สั่งงานพนักงาน → activate agent นั้น
+                                    const assignMatch = msg.match(/สั่งงาน\s+(.+?)\.\.\./);
+                                    if (assignMatch) {
+                                        const targetId = ROLE_MAP[assignMatch[1]];
+                                        if (targetId) {
+                                            setAgents(prev => prev.map(a =>
+                                                a.id === targetId ? { ...a, status: '[ACTIVE]', dot: 'dot-orange', msg: 'กำลังทำงาน...' } : a
+                                            ));
+                                        }
+                                    }
+
+                                    // อัพเดต agent status จาก log ของพนักงานเอง
+                                    const agentId = ROLE_MAP[role];
+                                    if (agentId) {
+                                        const isDone = msg.includes('SUCCESS') || msg.includes('DONE');
+                                        const isFail = msg.includes('FAILED') || msg.includes('ล้มเหลว') || msg.includes('SKIPPED');
+                                        setAgents(prev => prev.map(a => {
+                                            if (a.id === agentId) {
+                                                return {
+                                                    ...a,
+                                                    status: isDone ? '[DONE]' : isFail ? '[FAIL]' : '[ACTIVE]',
+                                                    dot: isDone ? 'dot-green' : isFail ? 'dot-red' : 'dot-orange',
+                                                    msg: msg.slice(0, 40)
+                                                };
+                                            }
+                                            return a;
+                                        }));
+                                    }
+                                }
                             }
-                        } catch(pe) { /* ignore poll error */ }
+                            if ((st.status || '').trim() !== 'running') {
+                                clearInterval(poll);
+                                clearTimeout(safetyTimeout);
+                                setPipelineRunning(false);
+                                setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'System', msg: 'Pipeline เสร็จแล้ว', isSys: true }]);
+                                setAgents(prev => prev.map(a => ({ ...a, status: '[SLEEP]', dot: 'dot-gray', msg: 'Offline' })));
+                                fetchPending();
+                            }
+                        } catch(pe) {
+                            clearInterval(poll);
+                            clearTimeout(safetyTimeout);
+                            setPipelineRunning(false);
+                        }
                     }, 3000);
                 } catch(e) {
-                    setPipelineOutput('Error: ' + e.message);
+                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'System', msg: 'Error: ' + (e.message || e), isSys: true }]);
                     setPipelineRunning(false);
+                    setAgents(prev => prev.map(a => ({ ...a, status: '[SLEEP]', dot: 'dot-gray', msg: 'Offline' })));
                 }
             };
 
@@ -498,110 +573,29 @@
                 return () => clearInterval(interval);
             }, []);
 
-            // Clock & Random Chart data
+            // Clock
             useEffect(() => {
                 const interval = setInterval(() => {
                     const now = new Date();
-                    setTime(now.toLocaleTimeString('en-US', { hour12: false }) + ' AM');
+                    setTime(now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
                 }, 1000);
-
-                const chartInterval = setInterval(() => {
-                    if (isRunning) {
-                        setChartHeights(prev => prev.map(() => Math.floor(Math.random() * 80) + 10));
-                    }
-                }, 1500);
-
-                return () => { clearInterval(interval); clearInterval(chartInterval); }
-            }, [isRunning]);
+                return () => clearInterval(interval);
+            }, []);
 
             // Scroll chat
             useEffect(() => {
                 if (logsEndRef.current) logsEndRef.current.scrollIntoView({ behavior: "smooth" });
             }, [chatLogs]);
 
-            // Core Logic Runner
-            useEffect(() => {
-                if (isRunning && activeFlowIndex < DEMO_FLOW.length) {
-                    const step = DEMO_FLOW[activeFlowIndex];
-                    if (step) {
-                        const timer = setTimeout(() => {
-                            // Update specific agent state
-                            setAgents(prev => prev.map(a => 
-                                a.id === step.agent 
-                                ? { ...a, status: step.status, dot: step.dot, msg: step.msg } 
-                                : a.status !== '[SLEEP]' && a.id !== step.agent 
-                                    ? { ...a, status: '[STANDBY]', dot: 'dot-gray' } 
-                                    : a
-                            ));
-
-                            // Push to Game Chat
-                            const now = new Date();
-                            const logTime = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-                            
-                            const foundRole = AI_ROLES.find(r => r.id === step.agent);
-                            setChatLogs(prev => [...prev, {
-                                sysTime: logTime,
-                                agent: foundRole ? foundRole.name : 'SYS',
-                                msg: step.msg,
-                                isAlert: step.isAlert
-                            }]);
-                            
-                            if (step.isAlert) {
-                                setRequiresApproval(true);
-                                setIsRunning(false);
-                            }
-
-                            setActiveFlowIndex(idx => idx + 1);
-                        }, activeFlowIndex === 0 ? 0 : DEMO_FLOW[activeFlowIndex].time - DEMO_FLOW[activeFlowIndex-1].time);
-                        return () => clearTimeout(timer);
-                    }
-                }
-            }, [isRunning, activeFlowIndex]);
-
-            const handleStart = () => {
-                if (isRunning) return;
-                setAgents(prev => prev.map(a => ({ ...a, status: '[STANDBY]', dot: 'dot-gray', msg: 'Waiting...' })));
-                
-                const now = new Date();
-                setChatLogs(prev => [...prev, {
-                    sysTime: `${now.getHours()}:${now.getMinutes()}`,
-                    agent: 'Admin',
-                    msg: '!run pipeline --force',
-                    isAdmin: true
-                }]);
-                
-                setActiveFlowIndex(0);
-                setRequiresApproval(false);
-                setIsRunning(true);
-            };
-
-            const handleApprove = () => {
-                setRequiresApproval(false);
-                setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'Admin', msg: '/approve (Confirmed delivery)', isAdmin: true }]);
-                
-                setAgents(prev => prev.map(a => a.id === 'guardian' ? { ...a, status: '[PASSED]', dot: 'dot-green' } : a));
-                
-                // Deduct random budget for effect
-                setBudget(b => b - Math.floor(Math.random() * 20 + 5));
-                
-                setTimeout(() => {
-                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'System', msg: 'Delivery confirmed. Awaiting next cycle.', isSys: true }]);
-                }, 1000);
-            };
-
             const handleChatSubmit = (e) => {
                if (e.key === 'Enter' && chatInput.trim()) {
-                   if (chatInput.trim() === '/approve' && requiresApproval) {
-                       handleApprove();
-                   } else {
-                       const now = new Date();
-                       setChatLogs(prev => [...prev, {
-                          sysTime: `${now.getHours()}:${now.getMinutes()}`,
-                          agent: 'Admin',
-                          msg: chatInput,
-                          isAdmin: true
-                       }]);
-                   }
+                   const now = new Date();
+                   setChatLogs(prev => [...prev, {
+                      sysTime: `${now.getHours()}:${now.getMinutes()}`,
+                      agent: 'Admin',
+                      msg: chatInput,
+                      isAdmin: true
+                   }]);
                    setChatInput('');
                }
             }
@@ -629,10 +623,10 @@
                     </div>
 
                     {/* Main Layout Grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 min-h-0">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-0" style={{ height: 'calc(100vh - 140px)', maxHeight: 'calc(100vh - 140px)' }}>
                         
                         {/* LEFT: Team Status */}
-                        <div className="panel panel-blue col-span-1 lg:col-span-3 flex flex-col p-4 pt-6 min-h-0">
+                        <div className="panel panel-blue col-span-1 lg:col-span-3 flex flex-col p-4 pt-6 min-h-0 overflow-hidden">
                             <div className="panel-header text-neonBlue">TEAM STATUS</div>
                             <div className="flex flex-col gap-3 overflow-y-auto pr-2 mb-4 flex-1">
                                 {['Core', 'Post', 'Reels'].map(deptName => (
@@ -738,7 +732,7 @@
                                         <div className="w-2 h-2 rounded-full bg-red-500"></div>
                                         <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
                                         <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                                        {isRunning && <span className="font-pixel text-[10px] text-green-400 ml-auto animate-pulse">PROCESSING...</span>}
+                                        {pipelineRunning && <span className="font-pixel text-[10px] text-green-400 ml-auto animate-pulse">PROCESSING...</span>}
                                     </div>
                                     <div className="w-64 h-8 border-x-2 border-gray-600 bg-gray-700"></div>
 
@@ -748,91 +742,192 @@
                             </div>
                             
                             {/* Bottom: Pixel Office + Briefing Room */}
-                            <div className="flex-[0.7] grid grid-cols-2 gap-5 min-h-0">
+                            <div className="flex-[0.7] grid grid-cols-5 gap-5 min-h-0">
 
-                            {/* Pixel Office */}
-                            <div className="panel panel-orange flex flex-col p-4 pt-6 min-h-0">
+                            {/* Pixel Office — Isometric */}
+                            <div className="panel panel-orange flex flex-col p-4 pt-6 min-h-0 col-span-3">
                                 <div className="panel-header text-neonOrange">PIXEL OFFICE</div>
-                                <div className="flex-1 pixel-floor border border-gray-700 rounded relative overflow-hidden">
-                                    {/* Wall */}
-                                    <div className="absolute top-0 left-0 right-0 h-[40%] bg-gradient-to-b from-[#1a2744] to-[#0f172a] border-b-4 border-[#8B5E3C]">
-                                        {/* Window */}
-                                        <div className="absolute top-3 left-[15%] w-16 h-12 border-2 border-[#4a3828] bg-gradient-to-b from-[#1e3a5f] to-[#0c1f33] rounded-sm">
-                                            <div className="absolute inset-0 border border-[#4a3828] m-1 opacity-50"></div>
-                                            <div className="absolute top-1 left-1 w-2 h-2 rounded-full bg-yellow-200/30"></div>
-                                        </div>
-                                        <div className="absolute top-3 right-[15%] w-16 h-12 border-2 border-[#4a3828] bg-gradient-to-b from-[#1e3a5f] to-[#0c1f33] rounded-sm">
-                                            <div className="absolute inset-0 border border-[#4a3828] m-1 opacity-50"></div>
-                                        </div>
-                                        {/* Company Sign */}
-                                        <div className="absolute top-2 left-1/2 -translate-x-1/2 font-pixel text-base text-neonOrange bg-[#1c1512] px-3 py-1 border-2 border-neonOrange/50 rounded-sm tracking-widest" style={{ textShadow: '0 0 8px rgba(249,115,22,0.6)' }}>
-                                            PANG GAME CO.
-                                        </div>
-                                    </div>
-
-                                    {/* Employees */}
+                                <div className="flex-1 border border-gray-700 rounded relative overflow-hidden" style={{ background: '#080c14', minHeight: '200px' }}>
                                     {(() => {
-                                        const employees = [
-                                            { name: 'นักข่าว', color: '#10b981', x: '5%', y: '52%', agentId: 'scout', emoji: '📡', particleColor: '#10b981' },
-                                            { name: 'นักเขียน', color: '#a855f7', x: '23%', y: '52%', agentId: 'brain', emoji: '🧠', particleColor: '#a855f7' },
-                                            { name: 'ตรวจสอบ', color: '#ef4444', x: '41%', y: '52%', agentId: 'guardian', emoji: '🛡️', particleColor: '#ef4444' },
-                                            { name: 'กราฟิก', color: '#f97316', x: '59%', y: '52%', agentId: 'anti', emoji: '🎨', particleColor: '#f97316' },
-                                            { name: 'โพสต์', color: '#3b82f6', x: '77%', y: '52%', agentId: 'publisher', emoji: '📤', particleColor: '#3b82f6' },
+                                        const C = 44;
+                                        const GW = 9, GH = 7;
+                                        const CR = 'rotate(-45deg) scale(1, 1.786)';
+                                        const roomColor = (r, c) => {
+                                            if (r < 4 && c < 5) return '#131d2c';
+                                            if (r < 4 && c >= 5) return '#18132a';
+                                            if (r >= 4 && c < 5) return '#131d26';
+                                            return '#13201a';
+                                        };
+                                        const deskDefs = [
+                                            { id: 'scout', name: 'นักข่าว', color: '#10b981', r: 1, c: 1, emoji: '📡' },
+                                            { id: 'brain', name: 'นักเขียน', color: '#a855f7', r: 1, c: 3, emoji: '🧠' },
+                                            { id: 'guardian', name: 'ตรวจสอบ', color: '#ef4444', r: 2, c: 1, emoji: '🛡️' },
+                                            { id: 'anti', name: 'กราฟิก', color: '#f97316', r: 5, c: 1, emoji: '🎨' },
+                                            { id: 'publisher', name: 'โพสต์', color: '#3b82f6', r: 5, c: 3, emoji: '📤' },
                                         ];
-                                        return employees.map((emp, i) => {
-                                            const agentState = agents.find(a => a.id === emp.agentId);
-                                            const isActive = agentState && agentState.status !== '[SLEEP]' && agentState.status !== '[STANDBY]';
-                                            return (
-                                                <div key={i} className={isActive ? 'typing' : 'idle'} style={{ position: 'absolute', left: emp.x, top: emp.y }}>
-                                                    {/* Emoji Bubble */}
-                                                    {isActive && (
-                                                        <div className="emoji-bubble">{emp.emoji}</div>
-                                                    )}
-                                                    {/* Character */}
-                                                    <div className="pixel-char" style={{ left: '18px' }}>
-                                                        {/* Head */}
-                                                        <div style={{ width: 14, height: 14, background: '#fcd9b6', borderRadius: 2, margin: '0 auto', border: '1px solid #d4a574', position: 'relative' }}>
-                                                            {/* Hair */}
-                                                            <div style={{ position: 'absolute', top: -3, left: -1, right: -1, height: 6, background: emp.color, borderRadius: '3px 3px 0 0' }}></div>
-                                                            {/* Eyes */}
-                                                            <div style={{ position: 'absolute', top: 7, left: 2, width: 3, height: 2, background: '#333', borderRadius: 1 }}></div>
-                                                            <div style={{ position: 'absolute', top: 7, right: 2, width: 3, height: 2, background: '#333', borderRadius: 1 }}></div>
-                                                        </div>
-                                                        {/* Body */}
-                                                        <div style={{ width: 16, height: 12, background: emp.color, margin: '0 auto', borderRadius: '0 0 3px 3px', opacity: 0.9 }}></div>
-                                                    </div>
-                                                    {/* Desk + Monitor */}
-                                                    <div className="pixel-desk">
-                                                        <div className={`pixel-monitor ${isActive ? 'on' : ''}`}></div>
-                                                        {/* Particles from monitor */}
-                                                        {isActive && [0,1,2].map(p => (
-                                                            <div key={p} className="particle" style={{
-                                                                background: emp.particleColor,
-                                                                boxShadow: `0 0 4px ${emp.particleColor}`,
-                                                                top: '-18px',
-                                                                left: `${20 + p * 8}px`,
-                                                                animationDelay: `${p * 0.4}s`
-                                                            }}></div>
-                                                        ))}
-                                                    </div>
-                                                    {/* Name Tag */}
-                                                    <div className="font-pixel text-sm text-center mt-2" style={{ color: emp.color, textShadow: `0 0 6px ${emp.color}` }}>
-                                                        {emp.name}
-                                                    </div>
-                                                </div>
-                                            );
-                                        });
-                                    })()}
+                                        const srvPos = [[1,6],[2,6],[1,7],[2,7]];
+                                        const plantPos = [[0,0],[3,4],[6,8]];
+                                        const roomLabels = [
+                                            { name: 'MAIN OFFICE', r: 0, c: 1.2 },
+                                            { name: 'SERVER ROOM', r: 0, c: 5.8 },
+                                            { name: 'GRAPHICS', r: 4, c: 1.2 },
+                                            { name: 'KITCHEN', r: 4, c: 6 },
+                                        ];
+                                        return (
+                                            <React.Fragment>
+                                            {/* Isometric transformed world */}
+                                            <div style={{
+                                                position: 'absolute', top: '52%', left: '50%',
+                                                width: GW * C, height: GH * C,
+                                                transform: 'translate(-50%, -46%) scale(1, 0.56) rotate(45deg)',
+                                            }}>
+                                                {/* Floor tiles */}
+                                                {Array.from({ length: GH * GW }, (_, i) => {
+                                                    const r = Math.floor(i / GW), c = i % GW;
+                                                    return <div key={'f'+i} style={{
+                                                        position: 'absolute', left: c * C, top: r * C, width: C, height: C,
+                                                        background: roomColor(r, c),
+                                                        borderRight: '1px solid rgba(255,255,255,0.04)',
+                                                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                                                    }} />;
+                                                })}
 
-                                    {/* Pang Mascot in corner */}
-                                    <div className="absolute bottom-2 right-2 w-8 h-8 bg-pink-400/20 border border-pink-400/40 rounded-full flex items-center justify-center" title="Nong Pang is watching~">
-                                        <span className="text-sm">🩷</span>
-                                    </div>
+                                                {/* Outer walls */}
+                                                <div style={{ position:'absolute',top:0,left:0,right:0,height:5,background:'#5a4232',zIndex:5,boxShadow:'0 2px 8px rgba(0,0,0,0.8)' }} />
+                                                <div style={{ position:'absolute',bottom:0,left:0,right:0,height:5,background:'#5a4232',zIndex:5 }} />
+                                                <div style={{ position:'absolute',top:0,bottom:0,left:0,width:5,background:'#5a4232',zIndex:5,boxShadow:'2px 0 8px rgba(0,0,0,0.8)' }} />
+                                                <div style={{ position:'absolute',top:0,bottom:0,right:0,width:5,background:'#5a4232',zIndex:5 }} />
+
+                                                {/* Room divider walls */}
+                                                <div style={{ position:'absolute',left:5*C-2,top:0,width:5,height:GH*C,background:'#4a3828',zIndex:5 }} />
+                                                <div style={{ position:'absolute',top:4*C-2,left:0,height:5,width:5*C,background:'#4a3828',zIndex:5 }} />
+                                                <div style={{ position:'absolute',top:4*C-2,left:5*C,height:5,width:4*C,background:'#4a3828',zIndex:5 }} />
+
+                                                {/* Door gaps */}
+                                                <div style={{ position:'absolute',left:5*C-4,top:2.5*C,width:12,height:C*0.8,background:'#131d2c',zIndex:6 }} />
+                                                <div style={{ position:'absolute',left:2*C,top:4*C-4,width:C*0.8,height:12,background:'#131d2c',zIndex:6 }} />
+
+                                                {/* Desks with monitors */}
+                                                {deskDefs.map((d, i) => {
+                                                    const st = agents.find(a => a.id === d.id);
+                                                    const on = st && st.status !== '[SLEEP]' && st.status !== '[STANDBY]';
+                                                    return <div key={'dk'+i} style={{
+                                                        position:'absolute', left: d.c*C+6, top: d.r*C+14,
+                                                        width: C-12, height: C/2, background:'#8B5E3C',
+                                                        border:'1px solid #5C3A1E', borderRadius:2,
+                                                        boxShadow:'0 3px 0 #3d2210, inset 1px 1px 0 rgba(255,255,255,0.15)', zIndex:3
+                                                    }}>
+                                                        <div style={{
+                                                            position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',
+                                                            width:16,height:12,borderRadius:1,
+                                                            background: on ? '#0c2d3f' : '#111',
+                                                            border:'1px solid '+(on?'#06b6d4':'#444'),
+                                                            boxShadow: on ? '0 0 10px rgba(6,182,212,0.8)' : 'none',
+                                                        }}>
+                                                            {on && <div style={{ position:'absolute',top:3,left:2,width:10,height:2,background:'#06b6d4',borderRadius:1,animation:'monitorBlink 1.5s infinite' }} />}
+                                                            {on && <div style={{ position:'absolute',top:7,left:2,width:7,height:2,background:'#10b981',borderRadius:1,animation:'monitorBlink 2s 0.3s infinite' }} />}
+                                                        </div>
+                                                        {/* Chair (below desk) */}
+                                                        <div style={{ position:'absolute',bottom:-10,left:'50%',transform:'translateX(-50%)',width:14,height:8,background:'#334155',borderRadius:'0 0 4px 4px',border:'1px solid #475569' }} />
+                                                    </div>;
+                                                })}
+
+                                                {/* Server racks */}
+                                                {srvPos.map(([r,c], i) => (
+                                                    <div key={'sv'+i} style={{
+                                                        position:'absolute', left:c*C+5, top:r*C+4,
+                                                        width:C-10, height:C-8,
+                                                        background:'linear-gradient(180deg, #2a2a40 0%, #1e1e32 100%)',
+                                                        border:'2px solid #444', borderRadius:2, zIndex:3,
+                                                        boxShadow:'inset 1px 1px 0 rgba(255,255,255,0.1), 0 2px 4px rgba(0,0,0,0.5)'
+                                                    }}>
+                                                        <div style={{ position:'absolute',top:5,left:5,width:4,height:4,borderRadius:'50%',background:'#10b981',boxShadow:'0 0 6px #10b981' }} />
+                                                        <div style={{ position:'absolute',top:5,left:14,width:4,height:4,borderRadius:'50%',background:pipelineRunning?'#f97316':'#444',boxShadow:pipelineRunning?'0 0 6px #f97316':'none',animation:pipelineRunning?'pulse 1s infinite alternate':'none' }} />
+                                                        <div style={{ position:'absolute',top:5,left:23,width:4,height:4,borderRadius:'50%',background:'#06b6d4',boxShadow:'0 0 4px #06b6d4',animation:'monitorBlink 3s infinite' }} />
+                                                        {[14,20,26].map((y,j) => <div key={j} style={{ position:'absolute',top:y,left:5,width:C-20,height:3,background:'#333',borderRadius:1 }} />)}
+                                                    </div>
+                                                ))}
+
+                                                {/* Kitchen furniture */}
+                                                <div style={{ position:'absolute',left:6*C+6,top:5*C+6,width:C-12,height:C-12,background:'#555',border:'1px solid #666',borderRadius:3,zIndex:3 }}>
+                                                    <div style={{ position:'absolute',top:4,left:'50%',transform:'translateX(-50%)',width:8,height:8,borderRadius:'50%',background:'#b91c1c',boxShadow:'0 0 4px #ef4444' }} />
+                                                </div>
+                                                <div style={{ position:'absolute',left:7*C+4,top:5*C+4,width:C-8,height:C*1.2,background:'#e2e8f0',border:'2px solid #94a3b8',borderRadius:3,zIndex:3 }}>
+                                                    <div style={{ position:'absolute',top:'40%',left:0,right:0,height:2,background:'#94a3b8' }} />
+                                                </div>
+                                                <div style={{ position:'absolute',left:5.5*C,top:5.5*C+4,width:C*1.5,height:C*0.6,background:'#6b4423',border:'1px solid #5C3A1E',borderRadius:3,zIndex:2 }} />
+
+                                                {/* Plants */}
+                                                {plantPos.map(([r,c], i) => (
+                                                    <div key={'pl'+i} style={{ position:'absolute',left:c*C+C/2-8,top:r*C+C/2-8,width:16,height:16,zIndex:3 }}>
+                                                        <div style={{ width:14,height:14,borderRadius:'50%',background:'radial-gradient(circle, #22c55e 0%, #166534 70%)',border:'2px solid #15803d',boxShadow:'0 0 6px rgba(34,197,94,0.3)' }} />
+                                                        <div style={{ width:4,height:6,background:'#92400e',margin:'-2px auto 0',borderRadius:'0 0 2px 2px' }} />
+                                                    </div>
+                                                ))}
+
+                                                {/* Characters (counter-rotated to appear normal) */}
+                                                {deskDefs.map((emp, i) => {
+                                                    const agentState = agents.find(a => a.id === emp.id);
+                                                    const isActive = agentState && agentState.status !== '[SLEEP]' && agentState.status !== '[STANDBY]';
+                                                    return (
+                                                        <div key={'ch'+i} style={{
+                                                            position:'absolute',
+                                                            left: emp.c*C + C/2 - 8,
+                                                            top: emp.r*C - 8,
+                                                            transform: CR, transformOrigin:'center bottom',
+                                                            zIndex:10, textAlign:'center',
+                                                        }}>
+                                                            <div style={{ animation: isActive ? 'pixelTyping 0.6s infinite' : 'pixelIdle 3s infinite' }}>
+                                                                {isActive && <div style={{ fontSize:14, marginBottom:2, animation:'bubblePop 2s ease-in-out infinite' }}>{emp.emoji}</div>}
+                                                                {/* Head */}
+                                                                <div style={{ width:14,height:14,background:'#fcd9b6',borderRadius:2,margin:'0 auto',border:'1px solid #d4a574',position:'relative' }}>
+                                                                    <div style={{ position:'absolute',top:-3,left:-1,right:-1,height:6,background:emp.color,borderRadius:'3px 3px 0 0' }} />
+                                                                    <div style={{ position:'absolute',top:7,left:2,width:3,height:2,background:'#333',borderRadius:1 }} />
+                                                                    <div style={{ position:'absolute',top:7,right:2,width:3,height:2,background:'#333',borderRadius:1 }} />
+                                                                </div>
+                                                                {/* Body */}
+                                                                <div style={{ width:16,height:12,background:emp.color,margin:'0 auto',borderRadius:'0 0 3px 3px',opacity:isActive?1:0.5 }} />
+                                                            </div>
+                                                            {/* Name */}
+                                                            <div style={{ fontSize:9,fontFamily:'VT323,monospace',color:emp.color,textShadow:'0 0 6px '+emp.color,whiteSpace:'nowrap',marginTop:2 }}>{emp.name}</div>
+                                                        </div>
+                                                    );
+                                                })}
+
+                                                {/* Room labels (counter-rotated) */}
+                                                {roomLabels.map((rm, i) => (
+                                                    <div key={'rl'+i} style={{
+                                                        position:'absolute', left:rm.c*C, top:rm.r*C+6,
+                                                        transform:CR, transformOrigin:'left center', zIndex:20
+                                                    }}>
+                                                        <div style={{ fontSize:9,fontFamily:'VT323,monospace',color:'rgba(255,255,255,0.2)',letterSpacing:3,whiteSpace:'nowrap' }}>{rm.name}</div>
+                                                    </div>
+                                                ))}
+
+                                                {/* Company sign (counter-rotated) */}
+                                                <div style={{
+                                                    position:'absolute', left:'50%', top:-8,
+                                                    transform:'translateX(-50%) '+CR, zIndex:25,
+                                                    background:'#1c1512', border:'2px solid rgba(249,115,22,0.6)',
+                                                    padding:'2px 10px', borderRadius:3,
+                                                    boxShadow:'0 0 12px rgba(249,115,22,0.3)'
+                                                }}>
+                                                    <span style={{ fontFamily:'Silkscreen,VT323,monospace',fontSize:11,color:'#f97316',letterSpacing:3,textShadow:'0 0 8px rgba(249,115,22,0.7)' }}>PANG GAME CO.</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Pang mascot */}
+                                            <div style={{ position:'absolute',bottom:6,right:6,width:28,height:28,background:'rgba(244,114,182,0.15)',border:'1px solid rgba(244,114,182,0.4)',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',zIndex:30 }}>
+                                                <span style={{ fontSize:14 }}>🩷</span>
+                                            </div>
+                                            </React.Fragment>
+                                        );
+                                    })()}
                                 </div>
                             </div>
 
                             {/* Briefing Room */}
-                            <div className="panel panel-orange flex flex-col p-4 pt-6 min-h-0">
+                            <div className="panel panel-orange flex flex-col p-4 pt-6 min-h-0 col-span-2">
                                 <div className="panel-header text-neonOrange">BRIEFING ROOM (CHAT)</div>
                                 
                                 <div className="flex-1 bg-black/80 border border-gray-700 rounded flex flex-col overflow-hidden font-game shadow-inner">
@@ -864,19 +959,14 @@
                                     
                                     {/* Input */}
                                     <div className="bg-gray-900 border-t border-gray-700 p-2 flex gap-2">
-                                        <input 
-                                            type="text" 
-                                            className="bg-black/50 border border-gray-700 flex-1 py-1 px-2 text-sm text-white outline-none rounded font-pixel" 
-                                            placeholder={requiresApproval ? "Type /approve to continue" : "> _"}
+                                        <input
+                                            type="text"
+                                            className="bg-black/50 border border-gray-700 flex-1 py-1 px-2 text-sm text-white outline-none rounded font-pixel"
+                                            placeholder="> _"
                                             value={chatInput}
                                             onChange={(e) => setChatInput(e.target.value)}
                                             onKeyDown={handleChatSubmit}
                                         />
-                                        {requiresApproval && (
-                                            <button onClick={handleApprove} className="font-pixel text-sm bg-orange-600 hover:bg-orange-500 text-black px-3 py-1 rounded">
-                                                /APPROVE
-                                            </button>
-                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -904,7 +994,7 @@
                                         var barColor = barColorMap[tk.color] || 'bg-neonGreen';
                                         var statusText = tk.status === 'active' ? 'ACTIVE' : tk.status === 'quota_exceeded' ? 'QUOTA FULL' : tk.status === 'no_key' ? 'NO KEY' : tk.status === 'error' ? 'ERROR' : 'OFFLINE';
                                         var statusColor = tk.status === 'active' ? 'text-neonGreen' : tk.status === 'quota_exceeded' ? 'text-red-400' : 'text-gray-500';
-                                        var pct = tk.pct != null ? tk.pct : (tk.status === 'active' ? 99 : 0);
+                                        var pct = tk.pct != null ? (tk.limit ? (100 - tk.pct) : tk.pct) : (tk.status === 'active' ? 5 : 0);
 
                                         return React.createElement('div', { key: i, className: 'bg-black/50 p-2 rounded border border-gray-800' },
                                             React.createElement('div', { className: 'flex justify-between items-center mb-1' },
@@ -917,8 +1007,8 @@
                                                     React.createElement('div', { className: 'h-full rounded ' + barColor, style: { width: pct + '%' } })
                                                 ),
                                                 React.createElement('div', { className: 'flex justify-between text-[10px] text-gray-500 mt-1' },
-                                                    React.createElement('span', null, tk.used + '/' + tk.limit + ' posts'),
-                                                    React.createElement('span', null, pct + '%')
+                                                    React.createElement('span', null, 'ใช้ ' + tk.used + '/' + tk.limit + ' posts'),
+                                                    React.createElement('span', null, (100 - pct) + '% เหลือ')
                                                 )
                                             ) : null
                                         );
@@ -945,21 +1035,14 @@
                                          <span className="text-[10px] text-gray-400">Hash Match</span>
                                          <span className="font-pixel text-blue-400">PASSED</span>
                                      </div>
-                                     {requiresApproval && (
-                                         <div className="absolute inset-0 bg-red-900/40 flex items-center justify-center font-pixel text-red-400 tracking-widest animate-pulse border-2 border-red-500">
-                                            LOCKED!
+                                     {pipelineRunning && (
+                                         <div className="absolute inset-0 bg-blue-900/30 flex items-center justify-center font-pixel text-neonBlue tracking-widest animate-pulse border-2 border-neonBlue">
+                                            CHECKING...
                                          </div>
                                      )}
                                 </div>
                             </div>
                             
-                            {/* Output Connector */}
-                            <div className="panel panel-green flex-[0.5] p-4 pt-6 flex items-center gap-4 bg-black/50">
-                                <div className="panel-header text-neonGreen">OUTPUT PIPELINE</div>
-                                <div className="text-4xl text-gray-500"><i className="fa-brands fa-facebook hover:text-blue-500 transition-colors cursor-pointer"></i></div>
-                                <div className="text-4xl text-gray-500"><i className="fa-brands fa-instagram hover:text-pink-500 transition-colors cursor-pointer"></i></div>
-                                <div className="text-4xl text-gray-500"><i className="fa-brands fa-telegram hover:text-blue-400 transition-colors cursor-pointer"></i></div>
-                            </div>
 
                         </div>
                     </div>
@@ -1010,7 +1093,7 @@
                                                         <div key={i} className="text-xs text-gray-300 mb-1 pl-2 border-l-2 border-gray-600">
                                                             <span className="text-gray-500">{m.date ? m.date.slice(0,10) : ''}</span>{' '}
                                                             <span className="text-neonBlue">[{m.from}]</span>{' '}
-                                                            {m.feedback}
+                                                            {typeof m.feedback === 'string' ? m.feedback : JSON.stringify(m.feedback)}
                                                         </div>
                                                     ))}
                                                 </div>
@@ -1065,18 +1148,7 @@
                         </div>
                     )}
 
-                    {/* === Pipeline Output Modal === */}
-                    {pipelineOutput && (
-                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setPipelineOutput('')}>
-                            <div className="panel panel-green w-full max-w-3xl max-h-[80vh] flex flex-col p-6 pt-8" onClick={e => e.stopPropagation()}>
-                                <div className="panel-header text-neonGreen">PIPELINE OUTPUT</div>
-                                <button onClick={() => setPipelineOutput('')} className="absolute top-2 right-4 text-gray-400 hover:text-white text-xl font-bold">✕</button>
-                                <pre className="flex-1 overflow-y-auto bg-black/80 border border-gray-700 rounded p-4 text-xs text-green-300 font-mono whitespace-pre-wrap mt-2">
-                                    {pipelineOutput}
-                                </pre>
-                            </div>
-                        </div>
-                    )}
+                    {/* Pipeline Output removed — แสดงใน Briefing Room แทน */}
 
                     {/* === Analytics Modal === */}
                     {showAnalytics && (
@@ -1119,14 +1191,14 @@
                         </div>
                     )}
 
-                    {/* === Pending Posts — Facebook Preview === */}
+                    {/* === Pending Posts — Facebook Preview (inline) === */}
                     {pendingPosts.length > 0 && (
-                        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-                            <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-4">
-                                <div className="text-center text-gray-400 text-sm mb-2">รอตรวจ {pendingPosts.length} โพสต์ — Preview ก่อนลงเพจ</div>
+                        <div className="mt-4 flex-shrink-0">
+                            <div className="text-gray-400 text-sm mb-3 text-center font-pixel tracking-wider">รอตรวจ — Preview ก่อนลงเพจ</div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4 justify-items-center">
                                 {pendingPosts.map(function(p) {
                                     return p.items.map(function(item, j) {
-                                        return React.createElement('div', { key: p.id + '-' + j, className: 'bg-white rounded-lg shadow-xl overflow-hidden' },
+                                        return React.createElement('div', { key: p.id + '-' + j, className: 'bg-white rounded-lg shadow-xl overflow-hidden w-full max-w-[380px]' },
                                             /* FB Header */
                                             React.createElement('div', { className: 'flex items-center gap-3 p-3 pb-2' },
                                                 React.createElement('div', { className: 'w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg' }, 'P'),
@@ -1141,10 +1213,24 @@
                                                     )
                                                 )
                                             ),
-                                            /* Caption */
-                                            React.createElement('div', { className: 'px-3 pb-2 text-[#050505] text-sm leading-relaxed whitespace-pre-wrap', style: { fontFamily: 'Helvetica, Arial, sans-serif' } }, item.caption),
-                                            /* Image */
-                                            item.image ? React.createElement('img', { src: item.image, className: 'w-full aspect-square object-cover' }) : (
+                                            /* Source badge */
+                                            item.sourceUrl ? React.createElement('div', { className: 'px-3 pb-1' },
+                                                React.createElement('a', {
+                                                    href: item.sourceUrl,
+                                                    target: '_blank',
+                                                    rel: 'noopener',
+                                                    className: 'inline-flex items-center gap-1 text-[11px] text-blue-500 hover:underline bg-blue-50 px-2 py-0.5 rounded-full'
+                                                },
+                                                    React.createElement('svg', { className: 'w-3 h-3', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 },
+                                                        React.createElement('path', { d: 'M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3' })
+                                                    ),
+                                                    (item.sourceName || new URL(item.sourceUrl).hostname)
+                                                )
+                                            ) : null,
+                                            /* Caption — จำกัดความสูง */
+                                            React.createElement('div', { className: 'px-3 pb-2 text-[#050505] text-sm leading-relaxed whitespace-pre-wrap overflow-hidden', style: { fontFamily: 'Helvetica, Arial, sans-serif', maxHeight: '120px', WebkitMaskImage: 'linear-gradient(180deg, #000 70%, transparent)' } }, item.caption),
+                                            /* Image — เช็ค YouTube URL */
+                                            (item.image && !item.image.includes('youtube.com') && !item.image.includes('youtu.be')) ? React.createElement('img', { src: item.image, className: 'w-full aspect-square object-cover' }) : (
                                                 React.createElement('div', { className: 'w-full aspect-square bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center' },
                                                     React.createElement('div', { className: 'text-center p-6' },
                                                         React.createElement('div', { className: 'text-2xl font-bold text-white mb-2' }, item.headline),
@@ -1187,17 +1273,48 @@
                                                     'Share'
                                                 )
                                             ),
-                                            /* Approve / Reject */
-                                            React.createElement('div', { className: 'flex gap-0' },
+                                            /* Approve / Reject — per item */
+                                            (function() {
+                                              var key = p.id + '-' + j;
+                                              if (rejectingKey === key) {
+                                                return React.createElement('div', { className: 'p-3 bg-gray-50 border-t border-gray-200' },
+                                                  React.createElement('div', { className: 'text-xs text-gray-500 mb-1' }, 'เหตุผลที่ไม่เอา (PM จะเอาไปสอนนักเขียน):'),
+                                                  React.createElement('input', {
+                                                    type: 'text',
+                                                    value: rejectReason,
+                                                    onChange: function(e) { setRejectReason(e.target.value); },
+                                                    onKeyDown: function(e) { if (e.key === 'Enter') confirmReject(p.id, j); },
+                                                    placeholder: 'เช่น caption ยาวไป / ข้อมูลผิด...',
+                                                    className: 'w-full border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-800 mb-2 outline-none focus:border-blue-400',
+                                                    autoFocus: true
+                                                  }),
+                                                  React.createElement('div', { className: 'flex gap-2' },
+                                                    React.createElement('button', {
+                                                      onClick: function() { confirmReject(p.id, j); },
+                                                      className: 'flex-1 py-2 bg-red-500 text-white font-bold text-sm rounded hover:bg-red-600'
+                                                    }, 'ยืนยัน — ลบ + สอน'),
+                                                    React.createElement('button', {
+                                                      onClick: function() { setRejectingKey(null); },
+                                                      className: 'flex-1 py-2 bg-gray-200 text-gray-600 font-bold text-sm rounded hover:bg-gray-300'
+                                                    }, 'ยกเลิก')
+                                                  )
+                                                );
+                                              }
+                                              var btnKey = p.id + '-' + j;
+                                              var isApproving = approvingKey === btnKey;
+                                              return React.createElement('div', { className: 'flex gap-0' },
                                                 React.createElement('button', {
-                                                    onClick: function() { approvePending(p.id); },
-                                                    className: 'flex-1 py-3 bg-[#1877f2] text-white font-bold text-sm hover:bg-[#166fe5] transition-colors'
-                                                }, 'อนุมัติ — โพสต์เลย'),
+                                                  onClick: function() { if (!isApproving) approvePending(p.id, j); },
+                                                  disabled: isApproving,
+                                                  className: 'flex-1 py-3 text-white font-bold text-sm transition-colors ' + (isApproving ? 'bg-blue-400 cursor-wait' : 'bg-[#1877f2] hover:bg-[#166fe5]')
+                                                }, isApproving ? 'กำลังโพสต์...' : 'อนุมัติ — โพสต์เลย'),
                                                 React.createElement('button', {
-                                                    onClick: function() { rejectPending(p.id); },
-                                                    className: 'flex-1 py-3 bg-gray-100 text-red-500 font-bold text-sm hover:bg-gray-200 transition-colors'
-                                                }, 'ไม่เอา — ลบ')
-                                            )
+                                                  onClick: function() { startReject(p.id, j); },
+                                                  disabled: isApproving,
+                                                  className: 'flex-1 py-3 bg-gray-100 text-red-500 font-bold text-sm hover:bg-gray-200 transition-colors'
+                                                }, 'ไม่เอา')
+                                              );
+                                            })()
                                         );
                                     });
                                 })}
@@ -1207,6 +1324,8 @@
                 </div>
             );
         };
+
+        /* Pending posts ย้ายมาอยู่ inline แล้ว */
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
