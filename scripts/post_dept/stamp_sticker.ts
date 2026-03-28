@@ -100,7 +100,7 @@ export async function stampSticker(
   summary?: string
 ): Promise<string> {
   const SIZE = 1080;
-  const BAR_H = summary ? 380 : 300;         // แถบดำใหญ่ขึ้น ให้อ่าน text ได้ชัด
+  const BAR_H = 300;                         // แถบดำ — headline only (เนื้อหาอยู่ใน caption)
   const IMAGE_H = SIZE - BAR_H;              // รูปข่าวส่วนที่เหลือ
 
   // 1. ดาวน์โหลดรูปข่าว
@@ -126,12 +126,8 @@ export async function stampSticker(
   const textPadLeft = stickerW + 10;
   const textMaxWidth = SIZE - textPadLeft - 20;
 
-  let textBuf: Buffer;
-  if (summary) {
-    textBuf = await createOverlayText(headline, summary, textMaxWidth);
-  } else {
-    textBuf = await createTextBuffer(headline, textMaxWidth);
-  }
+  // headline ตัวหนาอย่างเดียว — เนื้อหาอยู่ใน caption
+  let textBuf: Buffer = await createTextBuffer(headline, textMaxWidth);
   const textMeta = await sharp(textBuf).metadata();
   const textH = textMeta.height || 60;
 
