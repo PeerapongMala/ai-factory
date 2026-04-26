@@ -283,7 +283,7 @@
 
             const [pipelineRunning, setPipelineRunning] = useState(false);
             const [tokenData, setTokenData] = useState([]);
-            const [schedulerOn, setSchedulerOn] = useState(false);
+            const schedulerOn = true;
             const [postMode, setPostMode] = useState('approve');
             const [pendingPosts, setPendingPosts] = useState([]);
             const [analytics, setAnalytics] = useState([]);
@@ -381,24 +381,6 @@
                 } catch(e) {}
             };
 
-            // Fetch scheduler status
-            const fetchScheduler = async () => {
-                try {
-                    const res = await fetch(API_BASE + '/api/scheduler');
-                    const data = await res.json();
-                    setSchedulerOn(data.status === 'running');
-                } catch(e) { /* ignore */ }
-            };
-
-            // Toggle scheduler
-            const toggleScheduler = async () => {
-                try {
-                    const res = await fetch(API_BASE + '/api/scheduler', { method: 'POST' });
-                    const data = await res.json();
-                    setSchedulerOn(data.status === 'running');
-                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'Scheduler', msg: data.msg, isSys: true }]);
-                } catch(e) { /* ignore */ }
-            };
 
             // Fetch token status
             const fetchTokens = async () => {
@@ -577,11 +559,11 @@
                 }
             };
 
-            // Fetch tokens + scheduler + mode + pending on mount + every 15s
+            // Fetch tokens + mode + pending on mount + every 15s
             useEffect(() => {
-                fetchTokens(); fetchScheduler(); fetchPostMode(); fetchPending();
+                fetchTokens(); fetchPostMode(); fetchPending();
                 const interval = setInterval(() => {
-                    fetchTokens(); fetchScheduler(); fetchPostMode(); fetchPending();
+                    fetchTokens(); fetchPostMode(); fetchPending();
                 }, 15000);
                 return () => clearInterval(interval);
             }, []);
@@ -678,11 +660,9 @@
                                     className={`w-full py-3 rounded font-pixel text-xl tracking-widest border-4 transition-all ${pipelineRunning ? 'border-[#334155] text-gray-400 bg-gray-800' : 'border-[#10b981] text-black bg-[#34d399] hover:bg-[#10b981] shadow-[inset_2px_2px_0px_rgba(255,255,255,0.4)]'}`}>
                                     {pipelineRunning ? 'RUNNING...' : '▶ RUN PIPELINE'}
                                 </button>
-                                <button
-                                    onClick={toggleScheduler}
-                                    className={`w-full py-2 rounded font-pixel text-sm tracking-widest border-2 transition-all ${schedulerOn ? 'border-red-500 text-red-400 bg-red-500/10 hover:bg-red-500/20' : 'border-yellow-500 text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20'}`}>
-                                    {schedulerOn ? '⏹ STOP AUTO' : '⏰ AUTO ทุก 30 นาที'}
-                                </button>
+                                <div className="w-full py-2 rounded font-pixel text-sm tracking-widest border-2 border-green-500 text-green-400 bg-green-500/10 text-center">
+                                    ⏰ AUTO 24/7 via GitHub Actions
+                                </div>
                                 <button
                                     onClick={togglePostMode}
                                     className={`w-full py-2 rounded font-pixel text-sm tracking-widest border-2 transition-all ${postMode === 'approve' ? 'border-blue-400 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20' : 'border-green-400 text-green-400 bg-green-500/10 hover:bg-green-500/20'}`}>

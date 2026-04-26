@@ -466,44 +466,6 @@ const server = Bun.serve({
       }
     }
 
-    // POST /api/scheduler — เปิด/ปิด scheduler
-    if (path === "/api/scheduler" && req.method === "POST") {
-      const statusFile = join(ROOT, "tmp", "scheduler.pid");
-      const { existsSync, readFileSync, writeFileSync, unlinkSync } = await import("fs");
-      const { mkdirSync } = await import("fs");
-      mkdirSync(join(ROOT, "tmp"), { recursive: true });
-
-      // ถ้ามี pid อยู่แล้ว = กำลังรัน → ปิด
-      if (existsSync(statusFile)) {
-        try {
-          const pid = readFileSync(statusFile, "utf8").trim();
-          Bun.spawn(["taskkill", "/F", "/PID", pid]);
-        } catch {}
-        try { unlinkSync(statusFile); } catch {}
-        return json({ status: "stopped", msg: "Scheduler หยุดแล้ว" });
-      }
-
-      // เปิด scheduler
-      const proc = Bun.spawn(["bun", "run", "scripts/scheduler.ts"], {
-        cwd: ROOT,
-        stdout: "ignore",
-        stderr: "ignore",
-      });
-      writeFileSync(statusFile, String(proc.pid));
-      return json({ status: "running", msg: "Scheduler เริ่มแล้ว — รันทุก 30 นาที", pid: proc.pid });
-    }
-
-    // GET /api/scheduler — เช็คสถานะ scheduler
-    if (path === "/api/scheduler") {
-      const statusFile = join(ROOT, "tmp", "scheduler.pid");
-      const { existsSync, readFileSync } = await import("fs");
-      if (existsSync(statusFile)) {
-        const pid = readFileSync(statusFile, "utf8").trim();
-        return json({ status: "running", pid });
-      }
-      return json({ status: "stopped" });
-    }
-
     // GET /api/analytics — ดึงยอด posts จาก Facebook
     if (path === "/api/analytics") {
       const fbToken = process.env.FB_PAGE_TOKEN;
@@ -574,20 +536,4 @@ const server = Bun.serve({
 });
 
 console.log(`🎮 Pang Game Dashboard: http://localhost:${PORT}`);
-
-// Auto-start scheduler เมื่อ server เริ่ม
-(async () => {
-  const { mkdirSync, existsSync: ex, writeFileSync } = await import("fs");
-  const statusFile = join(ROOT, "tmp", "scheduler.pid");
-  mkdirSync(join(ROOT, "tmp"), { recursive: true });
-  if (!ex(statusFile)) {
-    const proc = Bun.spawn(["bun", "run", "scripts/scheduler.ts"], {
-      cwd: ROOT,
-      stdout: "ignore",
-      stderr: "ignore",
-    });
-    writeFileSync(statusFile, String(proc.pid));
-    console.log(`⏰ Scheduler auto-started (PID: ${proc.pid}) — รันทุก 30 นาที`);
-  }
-})();
 
