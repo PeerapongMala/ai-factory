@@ -16,8 +16,8 @@ function getPostMode(): "auto" | "approve" {
     const { readFileSync } = require("fs");
     const { join } = require("path");
     const modeFile = join(__dirname, "../tmp/post_mode.txt");
-    return readFileSync(modeFile, "utf8").trim() as any || "approve";
-  } catch { return "approve"; }
+    return readFileSync(modeFile, "utf8").trim() as any || "auto";
+  } catch { return "auto"; }
 }
 
 function ts(): string {
