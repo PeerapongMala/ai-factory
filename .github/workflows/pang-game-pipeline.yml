@@ -5,9 +5,6 @@ on:
     - cron: '*/30 * * * *'  # Every 30 minutes, 24/7
   workflow_dispatch: # Manual trigger button
 
-permissions:
-  contents: write
-
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
@@ -25,6 +22,12 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Restore processed hashes from cache
+        uses: actions/cache@v4
+        with:
+          path: logs/processed_hashes.json
+          key: processed-hashes
+
       - name: PM - Run Pipeline
         run: bun run scripts/pm.ts
         env:
@@ -35,10 +38,8 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           AYRSHARE_API_KEY: ${{ secrets.AYRSHARE_API_KEY }}
 
-      - name: Update processed hashes
-        run: |
-          git config user.name "Pang Game Bot"
-          git config user.email "bot@panggame.com"
-          git add logs/processed_hashes.json
-          git diff --staged --quiet || git commit -m "update: processed hashes [bot]"
-          git push
+      - name: Save processed hashes to cache
+        uses: actions/cache/save@v4
+        with:
+          path: logs/processed_hashes.json
+          key: processed-hashes
