@@ -334,7 +334,7 @@ const server = Bun.serve({
     if (path === "/api/postmode" && req.method === "GET") {
       const modeFile = join(ROOT, "tmp", "post_mode.txt");
       const { existsSync: ex, readFileSync: rf } = await import("fs");
-      const mode = ex(modeFile) ? rf(modeFile, "utf8").trim() : "approve";
+      const mode = ex(modeFile) ? rf(modeFile, "utf8").trim() : "auto";
       return json({ mode });
     }
 
@@ -343,7 +343,7 @@ const server = Bun.serve({
       const { mkdirSync: mk, readFileSync: rf, writeFileSync: wf, existsSync: ex } = await import("fs");
       mk(join(ROOT, "tmp"), { recursive: true });
       const modeFile = join(ROOT, "tmp", "post_mode.txt");
-      const current = ex(modeFile) ? rf(modeFile, "utf8").trim() : "approve";
+      const current = ex(modeFile) ? rf(modeFile, "utf8").trim() : "auto";
       const newMode = current === "auto" ? "approve" : "auto";
       wf(modeFile, newMode);
       return json({ mode: newMode });
@@ -574,3 +574,20 @@ const server = Bun.serve({
 });
 
 console.log(`🎮 Pang Game Dashboard: http://localhost:${PORT}`);
+
+// Auto-start scheduler เมื่อ server เริ่ม
+(async () => {
+  const { mkdirSync, existsSync: ex, writeFileSync } = await import("fs");
+  const statusFile = join(ROOT, "tmp", "scheduler.pid");
+  mkdirSync(join(ROOT, "tmp"), { recursive: true });
+  if (!ex(statusFile)) {
+    const proc = Bun.spawn(["bun", "run", "scripts/scheduler.ts"], {
+      cwd: ROOT,
+      stdout: "ignore",
+      stderr: "ignore",
+    });
+    writeFileSync(statusFile, String(proc.pid));
+    console.log(`⏰ Scheduler auto-started (PID: ${proc.pid}) — รันทุก 30 นาที`);
+  }
+})();
+
