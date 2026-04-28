@@ -1,1399 +1,757 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pang Game Company - Command Dashboard</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        darkBg: '#1c1512',     // Dark warm room bg
-                        panelBg: '#2b1e16',    // Toast crust panel
-                        neonBlue: '#06b6d4',   // RGB Keyboard Cyan
-                        neonGreen: '#10b981',  // -80% Tag Green
-                        neonOrange: '#f97316', // Flame Orange
-                        neonPurple: '#d946ef', // RGB Keyboard Pink
-                        neonRed: '#ef4444',    // Cape Red
-                        gridColor: 'rgba(249, 115, 22, 0.1)',
-                    },
-                    fontFamily: {
-                        pixel: ['"VT323"', 'monospace'],
-                        title: ['"Silkscreen"', 'cursive'],
-                        game: ['"Inter"', 'sans-serif'],
-                    },
-                }
-            }
-        }
-    </script>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Silkscreen&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- FontAwesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- React & ReactDOM -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <!-- Babel 7 -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PANG NEWS COMPANY — News Factory Tycoon</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;overflow:hidden;font-family:'DotGothic16',monospace;color:#f0e6c8;width:100vw;height:100vh}
+canvas#office{position:absolute;top:0;left:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges}
+#ui{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;display:flex;flex-direction:column}
+#ui>*{pointer-events:auto}
+.pixel-font{font-family:'Press Start 2P',monospace}
+.top-bar{background:linear-gradient(180deg,#3e2723 0%,#4e342e 100%);border-bottom:4px solid #8d6e63;padding:8px 16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;z-index:10}
+.top-bar .title{font-family:'Press Start 2P',monospace;font-size:14px;color:#ffd54f;text-shadow:2px 2px 0 #5d4037}
+.top-bar .stat{background:#2e1a0e;border:2px solid #6d4c41;border-radius:4px;padding:4px 10px;font-size:11px;display:flex;align-items:center;gap:6px}
+.top-bar .stat .label{color:#a1887f;font-size:9px}
+.top-bar .stat .val{color:#ffd54f;font-family:'Press Start 2P',monospace;font-size:10px}
+.bottom-bar{margin-top:auto;background:linear-gradient(0deg,#3e2723 0%,#4e342e 100%);border-top:4px solid #8d6e63;padding:8px 12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;z-index:10}
+.btn-game{font-family:'Press Start 2P',monospace;font-size:9px;padding:8px 14px;border:3px solid;border-radius:4px;cursor:pointer;transition:all .15s;text-transform:uppercase;background:#2e1a0e}
+.btn-game:hover{transform:translateY(-2px);filter:brightness(1.2)}
+.btn-game:active{transform:translateY(1px)}
+.btn-run{border-color:#4caf50;color:#4caf50}.btn-run:hover{background:#4caf5030}
+.btn-staff{border-color:#2196f3;color:#2196f3}.btn-staff:hover{background:#2196f330}
+.btn-chat{border-color:#ff9800;color:#ff9800}.btn-chat:hover{background:#ff980030}
+.btn-train{border-color:#e91e63;color:#e91e63}.btn-train:hover{background:#e91e6330}
+.btn-log{border-color:#9c27b0;color:#9c27b0}.btn-log:hover{background:#9c27b030}
+.btn-close{border-color:#f44336;color:#f44336;font-size:8px;padding:6px 10px}.btn-close:hover{background:#f4433630}
 
-    <style>
-        body {
-            background-color: #1c1512;
-            color: #fed7aa;
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            overflow-x: hidden;
-            /* Circuit board grid background */
-            background-image: 
-                linear-gradient(rgba(249, 115, 22, 0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(249, 115, 22, 0.05) 1px, transparent 1px);
-            background-size: 40px 40px;
-        }
+.panel-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:50;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+.panel{background:linear-gradient(180deg,#5d4037 0%,#4e342e 4px,#3e2723 4px,#3e2723 100%);border:4px solid #8d6e63;border-radius:8px;max-width:560px;width:92%;max-height:80vh;overflow-y:auto;animation:slideUp .25s;box-shadow:0 8px 32px rgba(0,0,0,0.5)}
+.panel-title{font-family:'Press Start 2P',monospace;font-size:12px;color:#ffd54f;padding:12px 16px;text-shadow:2px 2px 0 #3e2723;border-bottom:2px solid #5d4037}
+.panel-body{padding:12px 16px}
+.panel::-webkit-scrollbar{width:8px}.panel::-webkit-scrollbar-track{background:#2e1a0e}.panel::-webkit-scrollbar-thumb{background:#8d6e63;border-radius:4px}
 
-        /* Custom MMO Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.5); }
-        ::-webkit-scrollbar-thumb { background: #f97316; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #fdba74; }
+.emp-card{background:#2e1a0e;border:2px solid #5d4037;border-radius:6px;padding:10px;margin-bottom:8px;display:flex;gap:10px;align-items:center;cursor:pointer;transition:all .15s}
+.emp-card:hover{border-color:#ffd54f;background:#3e2723}
+.emp-avatar{width:36px;height:36px;border-radius:4px;border:2px solid;display:flex;align-items:center;justify-content:center;font-size:18px}
+.emp-info{flex:1}
+.emp-name{font-family:'Press Start 2P',monospace;font-size:9px;margin-bottom:4px}
+.emp-role{font-size:11px;color:#a1887f}
+.emp-stars{color:#ffd54f;font-size:12px;letter-spacing:2px}
 
-        /* Panels Kairosoft Style */
-        .panel {
-            background-color: #2b1e16;
-            border: 4px solid #7c2d12;
-            border-radius: 4px;
-            box-shadow:  inset 3px 3px 0px rgba(255,255,255,0.1), inset -3px -3px 0px rgba(0,0,0,0.3), 0 4px 6px rgba(0, 0, 0, 0.4);
-            position: relative;
-        }
-        .panel-blue { border-color: #06b6d4; box-shadow: 0 0 10px rgba(6, 182, 212, 0.2); }
-        .panel-orange { border-color: #f97316; box-shadow: 0 0 10px rgba(249, 115, 22, 0.2); }
-        .panel-green { border-color: #10b981; box-shadow: 0 0 10px rgba(16, 185, 129, 0.2); }
+.chat-box{background:#1a1a2e;border:2px solid #5d4037;border-radius:6px;height:200px;overflow-y:auto;padding:8px;margin-bottom:8px}
+.chat-msg{margin-bottom:6px;font-size:12px;line-height:1.4}
+.chat-msg.pm{color:#ff9800}.chat-msg.user{color:#4fc3f7}.chat-msg.sys{color:#9c27b0;font-style:italic}
+.chat-input{width:100%;background:#2e1a0e;border:2px solid #5d4037;border-radius:4px;padding:8px;color:#f0e6c8;font-family:inherit;font-size:13px;outline:none}
+.chat-input:focus{border-color:#ff9800}
 
-        .panel-header {
-            position: absolute;
-            top: -12px;
-            left: 16px;
-            background: #1c1512;
-            padding: 2px 10px;
-            font-size: 14px;
-            color: #fdba74;
-            font-family: 'VT323', monospace;
-            letter-spacing: 2px;
-            text-shadow: 0 0 5px currentColor;
-            z-index: 10;
-            pointer-events: none;
-        }
+.log-box{background:#1a1a2e;border:2px solid #5d4037;border-radius:6px;height:280px;overflow-y:auto;padding:8px}
+.log-line{font-size:11px;margin-bottom:4px;padding:2px 0;border-bottom:1px solid #2e1a0e;color:#a5d6a7}
+.log-line.err{color:#ef9a9a}
 
-        /* Status Dots */
-        .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; transition: all 0.3s; }
-        .dot-green { background-color: #10b981; box-shadow: 0 0 8px #10b981; }
-        .dot-orange { background-color: #f97316; box-shadow: 0 0 8px #f97316; }
-        .dot-red { background-color: #ef4444; box-shadow: 0 0 12px #ef4444; animation: pulse 1s infinite alternate; }
-        .dot-gray { background-color: #475569; }
+.train-select{width:100%;background:#2e1a0e;border:2px solid #5d4037;border-radius:4px;padding:8px;color:#f0e6c8;font-family:inherit;font-size:13px;outline:none;margin-bottom:8px}
+.train-select option{background:#2e1a0e}
+.train-textarea{width:100%;background:#2e1a0e;border:2px solid #5d4037;border-radius:4px;padding:8px;color:#f0e6c8;font-family:inherit;font-size:13px;outline:none;resize:vertical;min-height:60px;margin-bottom:8px}
+.train-textarea:focus,.train-select:focus{border-color:#e91e63}
 
-        @keyframes pulse {
-            from { box-shadow: 0 0 5px #ef4444; }
-            to { box-shadow: 0 0 20px #ef4444; }
-        }
+.status-badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:10px;font-family:'Press Start 2P',monospace}
+.status-auto{background:#4caf5030;color:#4caf50;border:1px solid #4caf50}
+.status-running{background:#ff980030;color:#ff9800;border:1px solid #ff9800}
 
-        /* Avatar Box */
-        .avatar-box {
-            width: 40px; height: 40px;
-            background: #1e293b;
-            border: 1px solid #334155;
-            border-radius: 4px;
-            display: flex; align-items: center; justify-content: center;
-            /* Kairosoft UI Element Border */
-            border: 3px solid #334155;
-            box-shadow: inset 2px 2px 0px rgba(255,255,255,0.1), inset -2px -2px 0px rgba(0,0,0,0.4);
-        }
-
-        /* Bar Chart Animation */
-        .bar { transition: height 0.5s ease-out; }
-
-        /* Kairosoft UX Animations */
-        @keyframes kairosoftWork {
-            0% { transform: translateY(0px) scale(1); }
-            50% { transform: translateY(-4px) scale(0.95); }
-            100% { transform: translateY(0px) scale(1); }
-        }
-        .anim-work img { animation: kairosoftWork 0.3s infinite alternate; }
-        
-        .hud-box {
-            background-color: #1e293b;
-            border: 3px solid #cbd5e1;
-            box-shadow: 2px 2px 0px rgba(0,0,0,0.5);
-            font-family: 'VT323', monospace;
-            padding: 4px 12px;
-            color: #fff;
-            font-size: 1.5rem;
-            display: inline-block;
-        }
-
-        /* Pixel Office Styles */
-        .pixel-floor {
-            background: repeating-conic-gradient(#2a1f14 0% 25%, #231a10 0% 50%) 0 0 / 20px 20px;
-        }
-        .pixel-desk {
-            width: 56px; height: 32px;
-            background: #8B5E3C;
-            border: 2px solid #5C3A1E;
-            border-radius: 2px;
-            box-shadow: inset 2px 2px 0px rgba(255,255,255,0.2), 0 4px 0 #3d2210;
-            position: relative;
-        }
-        .pixel-desk::after {
-            content: '';
-            position: absolute; bottom: -8px; left: 10px;
-            width: 36px; height: 8px;
-            background: #5C3A1E;
-            border-radius: 0 0 2px 2px;
-        }
-        .pixel-monitor {
-            width: 24px; height: 18px;
-            background: #111;
-            border: 2px solid #555;
-            border-radius: 2px;
-            position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
-            box-shadow: 0 0 6px rgba(6,182,212,0.4);
-            transition: all 0.3s;
-        }
-        .pixel-monitor.on {
-            background: #0c2d3f;
-            box-shadow: 0 0 12px rgba(6,182,212,0.8);
-            border-color: #06b6d4;
-        }
-        .pixel-monitor.on::after {
-            content: ''; position: absolute; top: 3px; left: 3px;
-            width: 14px; height: 2px; background: #06b6d4;
-            animation: monitorBlink 1.5s infinite;
-        }
-        .pixel-monitor.on::before {
-            content: ''; position: absolute; top: 7px; left: 3px;
-            width: 10px; height: 2px; background: #10b981;
-            animation: monitorBlink 2s 0.5s infinite;
-        }
-        @keyframes monitorBlink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-        .pixel-char {
-            width: 20px; height: 24px;
-            image-rendering: pixelated;
-            position: absolute; top: -28px;
-        }
-        @keyframes pixelTyping {
-            0%, 100% { transform: translateY(0) scaleY(1); }
-            15% { transform: translateY(-3px) scaleY(0.95); }
-            30% { transform: translateY(0) scaleY(1); }
-            45% { transform: translateY(-2px) scaleY(0.97); }
-            60% { transform: translateY(0) scaleY(1); }
-        }
-        .typing .pixel-char { animation: pixelTyping 0.6s infinite; }
-        @keyframes pixelIdle {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-1px); }
-        }
-        .idle .pixel-char { animation: pixelIdle 3s infinite; }
-
-        /* Particles floating up from monitor */
-        @keyframes particleUp {
-            0% { transform: translateY(0) scale(1); opacity: 1; }
-            100% { transform: translateY(-20px) scale(0.3); opacity: 0; }
-        }
-        .particle {
-            position: absolute;
-            width: 3px; height: 3px;
-            border-radius: 50%;
-            pointer-events: none;
-            animation: particleUp 1.2s ease-out infinite;
-        }
-
-        /* Emoji bubble pop */
-        @keyframes bubblePop {
-            0% { transform: translateX(-50%) scale(0); opacity: 0; }
-            20% { transform: translateX(-50%) scale(1.2); opacity: 1; }
-            30% { transform: translateX(-50%) scale(1); opacity: 1; }
-            80% { transform: translateX(-50%) scale(1); opacity: 1; }
-            100% { transform: translateX(-50%) scale(0.5); opacity: 0; }
-        }
-        .emoji-bubble {
-            position: absolute;
-            top: -38px; left: 50%;
-            transform: translateX(-50%);
-            background: #1a1a2e;
-            border: 2px solid #444;
-            border-radius: 6px;
-            padding: 2px 6px;
-            font-size: 16px;
-            animation: bubblePop 2s ease-in-out infinite;
-            z-index: 10;
-            white-space: nowrap;
-        }
-        .emoji-bubble::after {
-            content: '';
-            position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%);
-            width: 0; height: 0;
-            border-left: 4px solid transparent;
-            border-right: 4px solid transparent;
-            border-top: 5px solid #444;
-        }
-    </style>
+.notif{position:fixed;top:60px;right:16px;z-index:100;animation:slideIn .3s}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+.notif-card{background:#4e342e;border:3px solid #ffd54f;border-radius:6px;padding:10px 16px;margin-bottom:8px;font-size:12px;color:#ffd54f;box-shadow:0 4px 16px rgba(0,0,0,0.4);max-width:280px}
+</style>
 </head>
-<body class="min-h-screen w-screen flex flex-col p-4 md:p-6 overflow-auto">
-    <div id="root" class="h-full flex flex-col w-full max-w-[1600px] mx-auto gap-6 relative"></div>
+<body>
+<canvas id="office"></canvas>
+<div id="ui"><div id="root"></div></div>
 
-    <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+<script>
+// === KAIROSOFT OFFICE GAME ENGINE ===
+const canvas = document.getElementById('office');
+const ctx = canvas.getContext('2d');
 
-        const API_BASE = window.location.origin;
+const TILE = 40;
+const COLS = 20;
+const ROWS = 14;
 
-        const AI_ROLES = [
-            { id: 'scout', name: 'นักข่าว (RSS Scout)', image: 'assets/avatars/researcher.png', dept: 'Core' },
-            { id: 'brain', name: 'นักเขียน (Mistral)', image: 'assets/avatars/executor.png', dept: 'Post' },
-            { id: 'guardian', name: 'ตรวจสอบ (Guardian)', image: 'assets/avatars/guardian.png', dept: 'Core' },
-            { id: 'anti', name: 'กราฟิก (Creatomate)', image: 'assets/avatars/guardian.png', dept: 'Post' },
-            { id: 'publisher', name: 'โพสต์ (FB/IG)', image: 'assets/avatars/summarizer.png', dept: 'Post' },
-            { id: 'voice', name: 'พากย์เสียง (ElevenLabs)', image: 'assets/avatars/router.png', dept: 'Reels' },
-            { id: 'pexel', name: 'หาคลิป (Pexels)', image: 'assets/avatars/researcher.png', dept: 'Reels' }
-        ];
+const PAL = {
+  floor1:'#6a994e',floor2:'#5a8a3e',wall:'#5d4037',wallTop:'#8d6e63',wallDark:'#3e2723',
+  desk:'#a1887f',deskDark:'#795548',screen:'#4fc3f7',screenOff:'#37474f',
+  chair:'#6d4c41',plant:'#2e7d32',plantPot:'#8d6e63',
+  shadow:'rgba(0,0,0,0.15)',carpet:'#4a6741',
+  sky:'#64b5f6',cloud:'#bbdefb',
+  pm:'#e53935',reporter:'#1e88e5',writer:'#43a047',guardian:'#8e24aa',graphic:'#fb8c00',publisher:'#fdd835',
+  skin:'#ffcc80',skinDark:'#ffb74d',hair:'#5d4037',hairLight:'#8d6e63',
+};
 
-        const App = () => {
-            const [time, setTime] = useState('');
-            const [chatInput, setChatInput] = useState('');
+let W, H, scale;
+function resize() {
+  W = window.innerWidth; H = window.innerHeight;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W+'px'; canvas.style.height = H+'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  scale = Math.min(W / (COLS * TILE), (H - 100) / (ROWS * TILE));
+}
+window.addEventListener('resize', resize);
+resize();
 
-            // Agent States Array
-            const [agents, setAgents] = useState(AI_ROLES.map(r => ({
-                id: r.id, status: '[SLEEP]', dot: 'dot-gray', msg: 'Offline'
-            })));
+// Office layout: 0=floor, 1=wall, 2=desk, 3=plant, 4=coffee, 5=bookshelf, 6=window, 7=door, 8=carpet
+const LAYOUT = [
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,1],
+  [1,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,1],
+  [1,8,3,8,2,8,8,2,8,8,2,8,8,8,5,5,8,3,8,1],
+  [1,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,1],
+  [1,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,1],
+  [1,8,8,8,8,8,8,8,4,8,8,8,8,8,8,8,8,8,8,1],
+  [1,8,8,8,2,8,8,2,8,8,2,8,8,8,8,8,8,8,8,1],
+  [1,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,1],
+  [1,8,3,8,8,8,8,8,8,8,8,8,8,8,5,8,3,8,8,1],
+  [1,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,1],
+  [1,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,1],
+  [1,1,1,1,1,1,1,1,1,7,7,1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+];
 
-            // Panel states
-            const [showPanel, setShowPanel] = useState(null); // 'agents' | 'memory' | 'train' | null
-            const [agentList, setAgentList] = useState([]);
-            const [allMemory, setAllMemory] = useState({});
-            const [trainAgent, setTrainAgent] = useState('');
-            const [trainFeedback, setTrainFeedback] = useState('');
-            const [trainResult, setTrainResult] = useState('');
-            const [pmChatInput, setPmChatInput] = useState('');
-            const [pmChatLogs, setPmChatLogs] = useState([]);
-            const [pmChatLoading, setPmChatLoading] = useState(false);
+// Desk positions (col, row) for each employee
+const DESKS = {
+  pm: {x:4, y:3, label:'PM'},
+  reporter: {x:7, y:3, label:'นักข่าว'},
+  writer: {x:10, y:3, label:'นักเขียน'},
+  guardian: {x:4, y:7, label:'ตรวจสอบ'},
+  graphic: {x:7, y:7, label:'กราฟิก'},
+  publisher: {x:10, y:7, label:'โพสต์'},
+};
 
-            const [pipelineRunning, setPipelineRunning] = useState(false);
-            const [tokenData, setTokenData] = useState([]);
-            const schedulerOn = true;
-            const [postMode, setPostMode] = useState('approve');
-            const [pendingPosts, setPendingPosts] = useState([]);
-            const [analytics, setAnalytics] = useState([]);
-            const [showAnalytics, setShowAnalytics] = useState(false);
-            const [rejectingKey, setRejectingKey] = useState(null); // "batchId-itemIdx"
-            const [rejectReason, setRejectReason] = useState('');
-            const [approvingKey, setApprovingKey] = useState(null); // "batchId-itemIdx"
+// Characters
+class Character {
+  constructor(id, name, color, homeCol, homeRow) {
+    this.id = id;
+    this.name = name;
+    this.color = color;
+    this.homeX = homeCol * TILE + TILE/2;
+    this.homeY = homeRow * TILE + TILE/2;
+    this.x = this.homeX + (Math.random()-0.5)*20;
+    this.y = this.homeY + (Math.random()-0.5)*20;
+    this.targetX = this.homeX;
+    this.targetY = this.homeY;
+    this.state = 'working';
+    this.dir = 0; // 0=down,1=left,2=right,3=up
+    this.frame = 0;
+    this.frameTick = 0;
+    this.wanderTimer = 120 + Math.random()*300;
+    this.bubble = null;
+    this.bubbleTimer = 0;
+    this.working = false;
+  }
+  update() {
+    this.frameTick++;
+    if(this.frameTick > 8){this.frame=(this.frame+1)%4;this.frameTick=0;}
+    if(this.bubbleTimer>0) this.bubbleTimer--;
+    else this.bubble=null;
 
-            const [chatLogs, setChatLogs] = useState([
-                { sysTime: 'SYS', agent: 'System', msg: 'Pang Game Company v1.1 OS Booted.', isSys: true }
-            ]);
+    const dx=this.targetX-this.x, dy=this.targetY-this.y;
+    const dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist>2){
+      const spd=1.2;
+      this.x+=dx/dist*spd;
+      this.y+=dy/dist*spd;
+      this.state='walking';
+      if(Math.abs(dx)>Math.abs(dy)) this.dir=dx<0?1:2;
+      else this.dir=dy<0?3:0;
+    } else {
+      this.x=this.targetX;this.y=this.targetY;
+      if(this.state==='walking'){
+        const atHome=Math.abs(this.x-this.homeX)<5&&Math.abs(this.y-this.homeY)<5;
+        this.state=atHome?'working':'idle';
+        this.wanderTimer=80+Math.random()*200;
+      }
+      this.wanderTimer--;
+      if(this.wanderTimer<=0&&!this.working){
+        const atHome=Math.abs(this.x-this.homeX)<5&&Math.abs(this.y-this.homeY)<5;
+        if(atHome){
+          const wx=3+Math.random()*14, wy=3+Math.random()*8;
+          this.targetX=wx*TILE+TILE/2;
+          this.targetY=wy*TILE+TILE/2;
+        } else {
+          this.targetX=this.homeX;
+          this.targetY=this.homeY;
+        }
+        this.state='walking';
+      }
+    }
+  }
+  showBubble(text,dur){this.bubble=text;this.bubbleTimer=dur||120;}
+  goHome(){this.targetX=this.homeX;this.targetY=this.homeY;this.working=true;}
+  relax(){this.working=false;this.wanderTimer=60+Math.random()*100;}
+}
 
-            const logsEndRef = useRef(null);
+const characters = [
+  new Character('pm','PM',PAL.pm, DESKS.pm.x, DESKS.pm.y),
+  new Character('reporter','นักข่าว',PAL.reporter, DESKS.reporter.x, DESKS.reporter.y),
+  new Character('writer','นักเขียน',PAL.writer, DESKS.writer.x, DESKS.writer.y),
+  new Character('guardian','ตรวจสอบ',PAL.guardian, DESKS.guardian.x, DESKS.guardian.y),
+  new Character('graphic','กราฟิก',PAL.graphic, DESKS.graphic.x, DESKS.graphic.y),
+  new Character('publisher','โพสต์',PAL.publisher, DESKS.publisher.x, DESKS.publisher.y),
+];
 
-            // Fetch analytics
-            const fetchAnalytics = async () => {
-                try {
-                    const res = await fetch(API_BASE + '/api/analytics?limit=10');
-                    const data = await res.json();
-                    if (Array.isArray(data)) setAnalytics(data);
-                } catch(e) {}
-            };
+// Particles
+let particles = [];
+function addParticle(x,y,color,text){
+  particles.push({x,y,color,text,life:60,vy:-0.8,vx:(Math.random()-0.5)*0.5});
+}
 
-            // Fetch post mode
-            const fetchPostMode = async () => {
-                try {
-                    const res = await fetch(API_BASE + '/api/postmode');
-                    const data = await res.json();
-                    setPostMode(data.mode);
-                } catch(e) {}
-            };
+// Pipeline state (updated from React)
+window.gameState = {pipelineRunning:false, lastEvent:''};
 
-            // Toggle post mode
-            const togglePostMode = async () => {
-                try {
-                    const res = await fetch(API_BASE + '/api/postmode', { method: 'POST' });
-                    const data = await res.json();
-                    setPostMode(data.mode);
-                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'System', msg: data.mode === 'auto' ? 'เปลี่ยนเป็น: โพสต์เลย' : 'เปลี่ยนเป็น: ถามก่อน', isSys: true }]);
-                } catch(e) {}
-            };
+function startPipelineAnim(){
+  characters.forEach(c=>{c.goHome();c.showBubble('💪',90);});
+  setTimeout(()=>{
+    characters.forEach((c,i)=>{
+      setTimeout(()=>c.showBubble('⚡',70), i*400);
+    });
+  },1500);
+}
+function endPipelineAnim(success){
+  characters.forEach(c=>{
+    c.relax();
+    c.showBubble(success?'🎉':'😢',100);
+    if(success) addParticle(c.x,c.y-30,'#ffd54f','✨');
+  });
+}
+window.startPipelineAnim=startPipelineAnim;
+window.endPipelineAnim=endPipelineAnim;
 
-            // Fetch pending posts
-            const fetchPending = async () => {
-                try {
-                    const res = await fetch(API_BASE + '/api/pending');
-                    const data = await res.json();
-                    setPendingPosts(data);
-                } catch(e) {}
-            };
+// === DRAWING ===
+function drawTile(x,y,col,row){
+  const tile=LAYOUT[row]?.[col]||0;
+  switch(tile){
+    case 1: // wall
+      ctx.fillStyle=PAL.wallDark;ctx.fillRect(x,y,TILE,TILE);
+      ctx.fillStyle=PAL.wall;ctx.fillRect(x+1,y+1,TILE-2,TILE-2);
+      break;
+    case 6: // window
+      ctx.fillStyle=PAL.wall;ctx.fillRect(x,y,TILE,TILE);
+      ctx.fillStyle=PAL.sky;ctx.fillRect(x+4,y+4,TILE-8,TILE-8);
+      ctx.fillStyle=PAL.cloud;
+      ctx.fillRect(x+6,y+8,12,4);
+      ctx.fillStyle='#5d4037';
+      ctx.fillRect(x+TILE/2-1,y+4,2,TILE-8);
+      ctx.fillRect(x+4,y+TILE/2-1,TILE-8,2);
+      break;
+    case 7: // door
+      ctx.fillStyle=PAL.wallDark;ctx.fillRect(x,y,TILE,TILE);
+      ctx.fillStyle='#795548';ctx.fillRect(x+6,y+2,TILE-12,TILE-2);
+      ctx.fillStyle='#ffd54f';ctx.fillRect(x+TILE-14,y+TILE/2,4,4);
+      break;
+    case 8: // carpet floor
+      ctx.fillStyle=((col+row)%2===0)?PAL.floor1:PAL.floor2;
+      ctx.fillRect(x,y,TILE,TILE);
+      ctx.strokeStyle='rgba(0,0,0,0.08)';ctx.strokeRect(x,y,TILE,TILE);
+      break;
+    default:
+      ctx.fillStyle=PAL.floor1;ctx.fillRect(x,y,TILE,TILE);
+  }
+}
 
-            // Approve pending post (per-item)
-            const approvePending = async (batchId, itemIdx) => {
-                const key = batchId + '-' + itemIdx;
-                if (approvingKey) return; // ป้องกันกดซ้ำ
-                setApprovingKey(key);
-                try {
-                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'Admin', msg: 'อนุมัติโพสต์ กำลังโพสต์...', isAdmin: true }]);
-                    const res = await fetch(API_BASE + '/api/pending/' + batchId + '/approve?item=' + itemIdx, { method: 'POST' });
-                    const data = await res.json();
-                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'System', msg: data.msg || data.error, isSys: true }]);
-                    fetchPending();
-                } catch(e) {
-                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'System', msg: 'อนุมัติล้มเหลว: ' + (e.message || 'Unknown error'), isSys: true }]);
-                } finally {
-                    setApprovingKey(null);
-                }
-            };
+function drawDesk(x,y){
+  ctx.fillStyle=PAL.shadow;ctx.fillRect(x+4,y+28,32,6);
+  ctx.fillStyle=PAL.desk;ctx.fillRect(x+2,y+12,36,18);
+  ctx.fillStyle=PAL.deskDark;ctx.fillRect(x+2,y+28,36,3);
+  // monitor
+  ctx.fillStyle='#333';ctx.fillRect(x+10,y,20,14);
+  ctx.fillStyle=PAL.screen;ctx.fillRect(x+12,y+2,16,10);
+  // stand
+  ctx.fillStyle='#555';ctx.fillRect(x+18,y+14,4,2);
+  // keyboard
+  ctx.fillStyle='#444';ctx.fillRect(x+8,y+18,12,4);
+}
 
-            // Reject pending post — step 1: กดไม่เอา → โชว์ช่องเหตุผล (per-item)
-            const startReject = (batchId, itemIdx) => {
-                setRejectingKey(batchId + '-' + itemIdx);
-                setRejectReason('');
-            };
+function drawPlant(x,y){
+  ctx.fillStyle=PAL.plantPot;
+  ctx.fillRect(x+12,y+22,16,14);
+  ctx.fillRect(x+10,y+20,20,4);
+  ctx.fillStyle=PAL.plant;
+  ctx.beginPath();ctx.arc(x+20,y+14,10,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#388e3c';
+  ctx.beginPath();ctx.arc(x+16,y+12,6,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(x+24,y+10,5,0,Math.PI*2);ctx.fill();
+}
 
-            // Reject pending post — step 2: ส่งเหตุผล → ลบ + เทรนนักเขียน
-            const confirmReject = async (batchId, itemIdx) => {
-                const reason = rejectReason.trim();
-                setRejectingKey(null);
-                setRejectReason('');
-                try {
-                    await fetch(API_BASE + '/api/pending/' + batchId + '/reject?item=' + itemIdx, { method: 'POST' });
-                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'Admin', msg: 'ไม่อนุมัติ: ' + (reason || 'ไม่ระบุ'), isAdmin: true }]);
-                    if (reason) {
-                        try {
-                            await fetch(API_BASE + '/api/train', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ agent: 'writer.json', feedback: reason })
-                            });
-                            setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'PM', msg: 'เทรนนักเขียนแล้ว: "' + reason + '"' }]);
-                        } catch(te) {}
-                    }
-                    fetchPending();
-                } catch(e) {}
-            };
+function drawCoffee(x,y){
+  ctx.fillStyle='#795548';ctx.fillRect(x+8,y+6,24,30);
+  ctx.fillStyle='#5d4037';ctx.fillRect(x+10,y+8,20,20);
+  ctx.fillStyle='#e65100';ctx.fillRect(x+14,y+12,12,4);
+  ctx.fillStyle='#ffd54f';ctx.font='8px monospace';ctx.fillText('☕',x+14,y+24);
+}
 
+function drawBookshelf(x,y){
+  ctx.fillStyle='#6d4c41';ctx.fillRect(x+2,y+2,36,34);
+  ctx.fillStyle='#5d4037';ctx.fillRect(x+4,y+4,32,30);
+  const colors=['#e57373','#64b5f6','#81c784','#fff176','#ce93d8','#ffab91'];
+  for(let r=0;r<3;r++){
+    ctx.fillStyle='#6d4c41';ctx.fillRect(x+4,y+4+r*10,32,2);
+    for(let b=0;b<4;b++){
+      ctx.fillStyle=colors[(r*4+b)%colors.length];
+      ctx.fillRect(x+6+b*8,y+6+r*10,6,8);
+    }
+  }
+}
 
-            // Fetch token status
-            const fetchTokens = async () => {
-                try {
-                    const res = await fetch(API_BASE + '/api/tokens');
-                    const data = await res.json();
-                    if (Array.isArray(data) && data.length > 0) setTokenData(data);
-                    else if (tokenData.length === 0) setTokenData([
-                        { name: 'Mistral Large', role: 'PM + นักเขียน', status: 'checking', tier: 'FREE', color: 'orange' },
-                        { name: 'Ayrshare', role: 'โพสต์ FB + IG', status: 'checking', tier: 'FREE', color: 'blue' },
-                        { name: 'RSS Feeds', role: 'นักข่าว', status: 'active', tier: 'FREE', color: 'teal' },
-                    ]);
-                } catch(e) {
-                    if (tokenData.length === 0) setTokenData([
-                        { name: 'Mistral Large', role: 'PM + นักเขียน', status: 'offline', tier: 'FREE', color: 'orange' },
-                        { name: 'Ayrshare', role: 'โพสต์ FB + IG', status: 'offline', tier: 'FREE', color: 'blue' },
-                        { name: 'RSS Feeds', role: 'นักข่าว', status: 'active', tier: 'FREE', color: 'teal' },
-                    ]);
-                }
-            };
+function drawFurniture(col,row,x,y){
+  const tile=LAYOUT[row]?.[col];
+  if(tile===2) drawDesk(x,y);
+  if(tile===3) drawPlant(x,y);
+  if(tile===4) drawCoffee(x,y);
+  if(tile===5) drawBookshelf(x,y);
+}
 
-            // Fetch agents list
-            const fetchAgents = async () => {
-                try {
-                    const res = await fetch(API_BASE + '/api/agents');
-                    const data = await res.json();
-                    setAgentList(data);
-                } catch(e) { setAgentList([]); }
-            };
+function drawCharacter(c){
+  const s=2;
+  const bx=c.x-5*s, by=c.y-8*s;
+  const walk=c.state==='walking';
+  const f=c.frame;
 
-            // Fetch all memory
-            const fetchMemory = async () => {
-                try {
-                    const res = await fetch(API_BASE + '/api/memory');
-                    const data = await res.json();
-                    setAllMemory(data);
-                } catch(e) { setAllMemory({}); }
-            };
+  // shadow
+  ctx.fillStyle=PAL.shadow;
+  ctx.beginPath();ctx.ellipse(c.x,c.y+8*s,6*s,2*s,0,0,Math.PI*2);ctx.fill();
 
-            // Train agent
-            const handleTrain = async () => {
-                if (!trainAgent || !trainFeedback.trim()) return;
-                try {
-                    const res = await fetch(API_BASE + '/api/train', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ agent: trainAgent, feedback: trainFeedback })
-                    });
-                    const data = await res.json();
-                    setTrainResult(`เทรน ${data.name} สำเร็จ! memory: ${data.memoryCount} รายการ`);
-                    setTrainFeedback('');
-                    fetchMemory();
-                } catch(e) { setTrainResult('เทรนไม่สำเร็จ'); }
-            };
+  // legs
+  ctx.fillStyle='#455a64';
+  const legOff=walk?(f%2===0?2:-2):0;
+  ctx.fillRect(bx+2*s,by+11*s+Math.max(0,legOff),2*s,4*s);
+  ctx.fillRect(bx+6*s,by+11*s+Math.max(0,-legOff),2*s,4*s);
 
-            // Chat with PM
-            const handlePmChat = async () => {
-                if (!pmChatInput.trim() || pmChatLoading) return;
-                const msg = pmChatInput.trim();
-                setPmChatLogs(prev => [...prev, { from: 'admin', text: msg }]);
-                setPmChatInput('');
-                setPmChatLoading(true);
-                try {
-                    const res = await fetch(API_BASE + '/api/chat', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: msg })
-                    });
-                    const data = await res.json();
-                    let reply = data.reply || data.text || JSON.stringify(data);
-                    if (data.trained) reply += '\n\n(PM เทรนพนักงานแล้ว)';
-                    setPmChatLogs(prev => [...prev, { from: 'pm', text: reply }]);
-                } catch(e) {
-                    setPmChatLogs(prev => [...prev, { from: 'pm', text: 'Error: ติดต่อ PM ไม่ได้' }]);
-                }
-                setPmChatLoading(false);
-            };
+  // body
+  ctx.fillStyle=c.color;
+  ctx.fillRect(bx+1*s,by+6*s,8*s,6*s);
+  // body highlight
+  ctx.fillStyle='rgba(255,255,255,0.15)';
+  ctx.fillRect(bx+1*s,by+6*s,3*s,6*s);
 
-            // Run pipeline (fire-and-forget + poll → push to Briefing Room)
-            const lastLogLines = useRef(0);
-            const handleRunPipeline = async () => {
-                if (pipelineRunning) return;
-                setPipelineRunning(true);
-                lastLogLines.current = 0;
-                // ลบ pending เก่าก่อน run ใหม่
-                try { await fetch(API_BASE + '/api/pending/clear', { method: 'POST' }); } catch(e) {}
-                setPendingPosts([]);
-                const now = new Date();
-                setChatLogs(prev => [...prev, { sysTime: `${now.getHours()}:${now.getMinutes()}`, agent: 'Admin', msg: '!run pipeline', isAdmin: true }]);
-                try {
-                    await fetch(API_BASE + '/api/run', { method: 'POST' });
+  // arms
+  const armOff=(c.state==='working'&&f%2===0)?-1:0;
+  ctx.fillStyle=c.color;
+  ctx.fillRect(bx-1*s,by+7*s+armOff,2*s,4*s);
+  ctx.fillRect(bx+9*s,by+7*s-armOff,2*s,4*s);
 
-                    // Map ชื่อพนักงานใน log → agent id
-                    const ROLE_MAP = {
-                        'PM': null,
-                        'นักข่าว': 'scout',
-                        'นักเขียน': 'brain',
-                        'ตรวจสอบ': 'guardian',
-                        'กราฟิก': 'anti',
-                        'โพสต์': 'publisher',
-                    };
+  // head
+  ctx.fillStyle=PAL.skin;
+  ctx.fillRect(bx+1*s,by+1*s,8*s,5*s);
+  // hair
+  ctx.fillStyle=PAL.hair;
+  ctx.fillRect(bx+1*s,by,8*s,2*s);
+  ctx.fillRect(bx+1*s,by+1*s,1*s,2*s);
+  ctx.fillRect(bx+8*s,by+1*s,1*s,2*s);
 
-                    // เปิดไฟทุกคนเป็น STANDBY ก่อน
-                    setAgents(prev => prev.map(a => ({ ...a, status: '[STANDBY]', dot: 'dot-gray', msg: 'รอคำสั่ง...' })));
+  // face
+  if(c.dir!==3){
+    ctx.fillStyle='#333';
+    ctx.fillRect(bx+3*s,by+3*s,s,s);
+    ctx.fillRect(bx+6*s,by+3*s,s,s);
+    // mouth
+    if(c.bubble==='🎉'||c.bubble==='😊'){
+      ctx.fillRect(bx+4*s,by+5*s,2*s,s);
+    }
+  }
 
-                    // Safety timeout: ถ้า 5 นาทียังไม่เสร็จ reset ปุ่ม
-                    const safetyTimeout = setTimeout(() => {
-                        setPipelineRunning(false);
-                        setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'System', msg: 'Pipeline timeout — reset ปุ่ม', isSys: true }]);
-                        setAgents(prev => prev.map(a => ({ ...a, status: '[SLEEP]', dot: 'dot-gray', msg: 'Offline' })));
-                    }, 5 * 60 * 1000);
+  // name tag
+  ctx.fillStyle='rgba(0,0,0,0.6)';
+  ctx.font='9px "Press Start 2P"';
+  const tw=ctx.measureText(c.name).width;
+  ctx.fillRect(c.x-tw/2-3,by-12,tw+6,12);
+  ctx.fillStyle=c.color;
+  ctx.fillText(c.name,c.x-tw/2,by-3);
 
-                    // Poll status ทุก 3 วินาที → push log ใหม่เข้า chat + อัพเดต agent
-                    const poll = setInterval(async () => {
-                        try {
-                            const sr = await fetch(API_BASE + '/api/run/status');
-                            const st = await sr.json();
-                            const lines = (st.log || '').split('\n').filter(l => l.trim());
-                            const newLines = lines.slice(lastLogLines.current);
-                            lastLogLines.current = lines.length;
-                            for (const line of newLines) {
-                                const m = line.match(/\[.*?\]\s*\[(.+?)\]\s*(.*)/);
-                                if (m) {
-                                    const role = m[1];
-                                    const msg = m[2];
-                                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: role, msg: msg }]);
+  // speech bubble
+  if(c.bubble){
+    ctx.fillStyle='#fff';
+    ctx.beginPath();
+    ctx.roundRect(c.x-12,by-32,24,18,4);
+    ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.beginPath();
+    ctx.moveTo(c.x-3,by-14);ctx.lineTo(c.x+3,by-14);ctx.lineTo(c.x,by-8);
+    ctx.fill();
+    ctx.font='12px sans-serif';
+    ctx.fillText(c.bubble,c.x-6,by-17);
+  }
+}
 
-                                    // PM สั่งงานพนักงาน → activate agent นั้น
-                                    const assignMatch = msg.match(/สั่งงาน\s+(.+?)\.\.\./);
-                                    if (assignMatch) {
-                                        const targetId = ROLE_MAP[assignMatch[1]];
-                                        if (targetId) {
-                                            setAgents(prev => prev.map(a =>
-                                                a.id === targetId ? { ...a, status: '[ACTIVE]', dot: 'dot-orange', msg: 'กำลังทำงาน...' } : a
-                                            ));
-                                        }
-                                    }
+function drawParticles(){
+  particles=particles.filter(p=>p.life>0);
+  particles.forEach(p=>{
+    p.x+=p.vx;p.y+=p.vy;p.life--;
+    ctx.globalAlpha=p.life/60;
+    ctx.font='14px sans-serif';
+    ctx.fillStyle=p.color;
+    ctx.fillText(p.text||'⭐',p.x,p.y);
+    ctx.globalAlpha=1;
+  });
+}
 
-                                    // อัพเดต agent status จาก log ของพนักงานเอง
-                                    const agentId = ROLE_MAP[role];
-                                    if (agentId) {
-                                        const isDone = msg.includes('SUCCESS') || msg.includes('DONE');
-                                        const isFail = msg.includes('FAILED') || msg.includes('ล้มเหลว') || msg.includes('SKIPPED');
-                                        setAgents(prev => prev.map(a => {
-                                            if (a.id === agentId) {
-                                                return {
-                                                    ...a,
-                                                    status: isDone ? '[DONE]' : isFail ? '[FAIL]' : '[ACTIVE]',
-                                                    dot: isDone ? 'dot-green' : isFail ? 'dot-red' : 'dot-orange',
-                                                    msg: msg.slice(0, 40)
-                                                };
-                                            }
-                                            return a;
-                                        }));
-                                    }
-                                }
-                            }
-                            if ((st.status || '').trim() !== 'running') {
-                                clearInterval(poll);
-                                clearTimeout(safetyTimeout);
-                                setPipelineRunning(false);
-                                setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'System', msg: 'Pipeline เสร็จแล้ว', isSys: true }]);
-                                setAgents(prev => prev.map(a => ({ ...a, status: '[SLEEP]', dot: 'dot-gray', msg: 'Offline' })));
-                                fetchPending();
-                            }
-                        } catch(pe) {
-                            clearInterval(poll);
-                            clearTimeout(safetyTimeout);
-                            setPipelineRunning(false);
-                        }
-                    }, 3000);
-                } catch(e) {
-                    setChatLogs(prev => [...prev, { sysTime: 'SYS', agent: 'System', msg: 'Error: ' + (e.message || e), isSys: true }]);
-                    setPipelineRunning(false);
-                    setAgents(prev => prev.map(a => ({ ...a, status: '[SLEEP]', dot: 'dot-gray', msg: 'Offline' })));
-                }
-            };
+// Company sign on wall
+function drawSign(ox,oy){
+  const sx=ox+2*TILE, sy=oy+1*TILE;
+  ctx.fillStyle='#ffd54f';
+  ctx.fillRect(sx,sy+4,6*TILE,TILE-8);
+  ctx.fillStyle='#f9a825';
+  ctx.fillRect(sx+2,sy+6,6*TILE-4,TILE-12);
+  ctx.font='bold 11px "Press Start 2P"';
+  ctx.fillStyle='#3e2723';
+  ctx.fillText('PANG NEWS CO.',sx+10,sy+TILE/2+3);
+}
 
-            // Fetch tokens + mode + pending on mount + every 15s
-            useEffect(() => {
-                fetchTokens(); fetchPostMode(); fetchPending();
-                const interval = setInterval(() => {
-                    fetchTokens(); fetchPostMode(); fetchPending();
-                }, 15000);
-                return () => clearInterval(interval);
-            }, []);
+// Time of day lighting
+function getTimeColor(){
+  const h=new Date().getHours();
+  if(h>=6&&h<10) return 'rgba(255,200,100,0.05)'; // morning warm
+  if(h>=10&&h<17) return 'rgba(255,255,255,0)'; // day
+  if(h>=17&&h<20) return 'rgba(255,150,50,0.08)'; // sunset
+  return 'rgba(30,30,80,0.15)'; // night
+}
 
-            // Clock
-            useEffect(() => {
-                const interval = setInterval(() => {
-                    const now = new Date();
-                    setTime(now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-                }, 1000);
-                return () => clearInterval(interval);
-            }, []);
+// === MAIN GAME LOOP ===
+let tick=0;
+function gameLoop(){
+  tick++;
+  ctx.clearRect(0,0,W,H);
 
-            // Scroll chat
-            useEffect(() => {
-                if (logsEndRef.current) logsEndRef.current.scrollIntoView({ behavior: "smooth" });
-            }, [chatLogs]);
+  // background
+  ctx.fillStyle='#1a1a2e';
+  ctx.fillRect(0,0,W,H);
 
-            const handleChatSubmit = (e) => {
-               if (e.key === 'Enter' && chatInput.trim()) {
-                   const now = new Date();
-                   setChatLogs(prev => [...prev, {
-                      sysTime: `${now.getHours()}:${now.getMinutes()}`,
-                      agent: 'Admin',
-                      msg: chatInput,
-                      isAdmin: true
-                   }]);
-                   setChatInput('');
-               }
+  ctx.save();
+  const ox=(W-COLS*TILE*scale)/2;
+  const oy=(H-ROWS*TILE*scale)/2 - 10;
+  ctx.translate(ox,oy);
+  ctx.scale(scale,scale);
+
+  // draw tiles
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    drawTile(c*TILE,r*TILE,c,r);
+  }
+
+  // draw furniture
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    drawFurniture(c,r,c*TILE,r*TILE);
+  }
+
+  // sign
+  drawSign(0,0);
+
+  // update & draw characters (sorted by y for depth)
+  characters.forEach(c=>c.update());
+  characters.sort((a,b)=>a.y-b.y);
+  characters.forEach(c=>drawCharacter(c));
+
+  // particles
+  drawParticles();
+
+  // time-of-day overlay
+  ctx.fillStyle=getTimeColor();
+  ctx.fillRect(0,0,COLS*TILE,ROWS*TILE);
+
+  ctx.restore();
+
+  requestAnimationFrame(gameLoop);
+}
+gameLoop();
+
+// random bubbles
+setInterval(()=>{
+  if(window.gameState.pipelineRunning) return;
+  const c=characters[Math.floor(Math.random()*characters.length)];
+  const bubbles=['💡','📝','☕','🎮','📰','✍️','🔍','💬','📱','🖥️'];
+  c.showBubble(bubbles[Math.floor(Math.random()*bubbles.length)],80);
+},4000);
+</script>
+
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback}=React;
+const API=window.location.origin;
+
+function App(){
+  const [panel,setPanel]=useState(null);
+  const [logs,setLogs]=useState([]);
+  const [running,setRunning]=useState(false);
+  const [postMode,setPostMode]=useState('auto');
+  const [tokens,setTokens]=useState([]);
+  const [agents,setAgents]=useState([]);
+  const [chatLogs,setChatLogs]=useState([{from:'pm',text:'สวัสดีครับ PM พร้อมทำงานแล้ว! 🎮'}]);
+  const [chatInput,setChatInput]=useState('');
+  const [chatLoading,setChatLoading]=useState(false);
+  const [trainAgent,setTrainAgent]=useState('writer.json');
+  const [trainText,setTrainText]=useState('');
+  const [trainResult,setTrainResult]=useState('');
+  const [time,setTime]=useState('');
+  const [notifs,setNotifs]=useState([]);
+  const chatEndRef=useRef(null);
+  const logEndRef=useRef(null);
+
+  const addLog=(msg,err)=>setLogs(p=>[...p.slice(-50),{t:new Date().toLocaleTimeString('th-TH'),msg,err}]);
+  const addNotif=(msg)=>{
+    const id=Date.now();
+    setNotifs(p=>[...p,{id,msg}]);
+    setTimeout(()=>setNotifs(p=>p.filter(n=>n.id!==id)),4000);
+  };
+
+  // Clock
+  useEffect(()=>{
+    const i=setInterval(()=>setTime(new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'})),1000);
+    return()=>clearInterval(i);
+  },[]);
+
+  // Fetch data
+  const fetchAll=useCallback(async()=>{
+    try{
+      const [tRes,aRes,mRes]=await Promise.all([
+        fetch(API+'/api/tokens').then(r=>r.json()).catch(()=>[]),
+        fetch(API+'/api/agents').then(r=>r.json()).catch(()=>[]),
+        fetch(API+'/api/postmode').then(r=>r.json()).catch(()=>({mode:'auto'})),
+      ]);
+      setTokens(tRes);setAgents(aRes);setPostMode(mRes.mode);
+    }catch{}
+  },[]);
+
+  useEffect(()=>{fetchAll();const i=setInterval(fetchAll,20000);return()=>clearInterval(i);},[fetchAll]);
+
+  // Run pipeline
+  const runPipeline=async()=>{
+    if(running) return;
+    setRunning(true);
+    window.gameState.pipelineRunning=true;
+    window.startPipelineAnim();
+    addLog('🚀 Pipeline เริ่มทำงาน...');
+    addNotif('Pipeline เริ่มแล้ว!');
+    try{
+      await fetch(API+'/api/run',{method:'POST'});
+      const poll=setInterval(async()=>{
+        try{
+          const r=await fetch(API+'/api/run/status');
+          const d=await r.json();
+          if(d.status==='done'||d.status==='idle'){
+            clearInterval(poll);
+            setRunning(false);
+            window.gameState.pipelineRunning=false;
+            window.endPipelineAnim(true);
+            addLog('✅ Pipeline เสร็จแล้ว!');
+            addNotif('Pipeline เสร็จสมบูรณ์!');
+            if(d.log){
+              d.log.split('\n').filter(l=>l.trim()).slice(-10).forEach(l=>addLog(l));
             }
+          }
+        }catch{clearInterval(poll);setRunning(false);window.gameState.pipelineRunning=false;window.endPipelineAnim(false);}
+      },3000);
+    }catch(e){
+      setRunning(false);window.gameState.pipelineRunning=false;window.endPipelineAnim(false);
+      addLog('❌ Pipeline error: '+e.message,true);
+    }
+  };
 
-            return (
-                <div className="flex flex-col h-full gap-5">
-                    
-                    {/* Header Top Strip: Kairosoft HUD */}
-                    <div className="flex justify-between items-end mb-2">
-                        <div className="flex items-baseline gap-4">
-                            <h1 className="font-pixel text-5xl font-bold tracking-widest text-[#fed7aa] drop-shadow-[2px_2px_0px_rgba(239,68,68,1)]">
-                                PANG GAME STUDIO
-                            </h1>
-                        </div>
-                        
-                        {/* Company Stats HUD */}
-                        <div className="flex gap-4">
-                            <div className="hud-box bg-green-900 border-green-300">
-                                💰 COST: <span className="text-green-400">฿0 FREE</span>
-                            </div>
-                            <div className="hud-box bg-blue-900 border-blue-300">
-                                📅 YEAR 1 <span className="text-gray-300 text-xl ml-2">{time}</span>
-                            </div>
-                        </div>
-                    </div>
+  // Toggle post mode
+  const toggleMode=async()=>{
+    try{
+      const r=await fetch(API+'/api/postmode',{method:'POST'});
+      const d=await r.json();
+      setPostMode(d.mode);
+      addNotif('โหมด: '+(d.mode==='auto'?'โพสต์เลย ⚡':'ถามก่อนโพสต์ 🔍'));
+    }catch{}
+  };
 
-                    {/* Main Layout Grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-0 pt-3" style={{ height: 'calc(100vh - 140px)', maxHeight: 'calc(100vh - 140px)' }}>
-                        
-                        {/* LEFT: Team Status */}
-                        <div className="panel panel-blue col-span-1 lg:col-span-3 flex flex-col p-4 pt-6 min-h-0">
-                            <div className="panel-header text-neonBlue">TEAM STATUS</div>
-                            <div className="flex flex-col gap-3 overflow-y-auto pr-2 mb-4 flex-1">
-                                {['Core', 'Post', 'Reels'].map(deptName => (
-                                    <div key={deptName} className="mb-2 bg-[#0b1121] p-2 rounded border-2 border-slate-700 shadow-inner">
-                                        <div className="text-neonOrange font-pixel text-xl mb-2 tracking-widest border-b border-slate-700 pb-1">
-                                            {deptName === 'Post' ? '📝 POST DEPT' : deptName === 'Reels' ? '🎬 REELS DEPT' : '🏢 CORE DEPT'}
-                                        </div>
-                                        <div className="flex flex-col gap-2">
-                                            {AI_ROLES.filter(r => r.dept === deptName).map((role, idx) => {
-                                                const agentData = agents.find(a => a.id === role.id) || { status: '[SLEEP]', activity: 'Waiting for tasks...' };
-                                                return (
-                                                    <div key={idx} className={`flex items-center justify-between p-2 rounded border border-gray-700 bg-gray-900/80 transition-all ${agentData.status !== '[SLEEP]' ? 'border-gray-500 shadow-[0_0_10px_rgba(255,255,255,0.1)]' : 'opacity-70'}`}>
-                                                        <div className="flex items-center gap-3">
-                                                            <div className={`w-10 h-10 bg-gray-800 border-[3px] border-gray-600 rounded overflow-hidden shadow-[inset_2px_2px_0px_rgba(255,255,255,0.2)] ${agentData.status !== '[SLEEP]' ? 'anim-work border-neonOrange' : ''}`}>
-                                                                <img src={role.image + "?v=2"} alt={role.name} className="w-full h-full object-cover rendering-pixelated" style={{imageRendering: 'pixelated'}} />
-                                                            </div>
-                                                            <div className="flex flex-col">
-                                                                <span className="text-[12px] font-bold text-[#fed7aa]">{role.name}</span>
-                                                                <span className="text-[10px] text-gray-400 font-pixel tracking-wider">{agentData.status}</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className={`status-dot ${agentData.dot}`}></div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            
-                            {/* Action Buttons */}
-                            <div className="mt-auto flex flex-col gap-2">
-                                <button
-                                    onClick={handleRunPipeline}
-                                    disabled={pipelineRunning}
-                                    className={`w-full py-3 rounded font-pixel text-xl tracking-widest border-4 transition-all ${pipelineRunning ? 'border-[#334155] text-gray-400 bg-gray-800' : 'border-[#10b981] text-black bg-[#34d399] hover:bg-[#10b981] shadow-[inset_2px_2px_0px_rgba(255,255,255,0.4)]'}`}>
-                                    {pipelineRunning ? 'RUNNING...' : '▶ RUN PIPELINE'}
-                                </button>
-                                <div className="w-full py-2 rounded font-pixel text-sm tracking-widest border-2 border-green-500 text-green-400 bg-green-500/10 text-center">
-                                    ⏰ AUTO 24/7 via GitHub Actions
-                                </div>
-                                <button
-                                    onClick={togglePostMode}
-                                    className={`w-full py-2 rounded font-pixel text-sm tracking-widest border-2 transition-all ${postMode === 'approve' ? 'border-blue-400 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20' : 'border-green-400 text-green-400 bg-green-500/10 hover:bg-green-500/20'}`}>
-                                    {postMode === 'approve' ? '🔍 ถามก่อนโพสต์' : '⚡ โพสต์เลย'}
-                                </button>
-                                {/* ปุ่มรอตรวจงาน — โชว์จำนวน pending */}
-                                {pendingPosts.length > 0 && (
-                                    <button
-                                        onClick={() => { fetchPending(); setShowPanel('pending'); }}
-                                        className="w-full py-3 rounded font-pixel text-lg tracking-widest border-4 border-yellow-400 text-yellow-300 bg-yellow-500/20 hover:bg-yellow-500/30 transition-all animate-pulse shadow-[0_0_12px_rgba(250,204,21,0.3)]">
-                                        {'📋 รอตรวจงาน (' + pendingPosts.reduce((sum, p) => sum + p.items.length, 0) + ')'}
-                                    </button>
-                                )}
-                                <div className="grid grid-cols-4 gap-2">
-                                    <button
-                                        onClick={() => { fetchAgents(); setShowPanel('agents'); }}
-                                        className="py-2 rounded font-pixel text-[11px] tracking-wider border-2 border-neonBlue text-neonBlue bg-neonBlue/10 hover:bg-neonBlue/20 transition-all">
-                                        พนักงาน
-                                    </button>
-                                    <button
-                                        onClick={() => { fetchMemory(); setShowPanel('memory'); }}
-                                        className="py-2 rounded font-pixel text-[11px] tracking-wider border-2 border-neonPurple text-neonPurple bg-neonPurple/10 hover:bg-neonPurple/20 transition-all">
-                                        Memory
-                                    </button>
-                                    <button
-                                        onClick={() => { setShowPanel('chat'); }}
-                                        className="py-2 rounded font-pixel text-[11px] tracking-wider border-2 border-neonOrange text-neonOrange bg-neonOrange/10 hover:bg-neonOrange/20 transition-all">
-                                        คุย PM
-                                    </button>
-                                    <button
-                                        onClick={() => { fetchAnalytics(); setShowAnalytics(true); }}
-                                        className="py-2 rounded font-pixel text-[11px] tracking-wider border-2 border-cyan-400 text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 transition-all">
-                                        Analytics
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+  // Chat with PM
+  const sendChat=async()=>{
+    if(!chatInput.trim()||chatLoading) return;
+    const msg=chatInput.trim();
+    setChatInput('');
+    setChatLogs(p=>[...p,{from:'user',text:msg}]);
+    setChatLoading(true);
+    try{
+      const r=await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})});
+      const d=await r.json();
+      setChatLogs(p=>[...p,{from:'pm',text:d.reply||d.error||'...'}]);
+      if(d.trained) addNotif('PM สั่งเทรนพนักงานแล้ว!');
+    }catch(e){
+      setChatLogs(p=>[...p,{from:'sys',text:'Error: '+e.message}]);
+    }
+    setChatLoading(false);
+  };
 
-                        {/* CENTER: Command Center & Briefing Room */}
-                        <div className="col-span-1 lg:col-span-6 flex flex-col gap-5 min-h-0">
-                            
-                            {/* Top: Central Viz */}
-                            <div className="panel panel-orange flex-1 p-4 pt-8 flex flex-col justify-center items-center relative bg-black/40">
-                                <div className="panel-header text-neonOrange">COMMAND CENTER</div>
-                                
-                                {/* Pseudo Graphic Representation */}
-                                <div className="w-full h-full border border-gray-800 bg-[#0f172a]/60 rounded relative flex flex-col items-center justify-center">
-                                    <div className="font-pixel text-neonBlue text-xl mb-6 border border-neonBlue px-4 py-1 bg-neonBlue/10">DATA FUNNEL</div>
-                                    
-                                    {/* Funnel CSS Art */}
-                                    <div className="flex flex-col items-center justify-center w-full z-10">
-                                        <div className="w-64 h-8 bg-blue-500/80 border border-blue-400 rounded-t flex justify-center items-center mb-1 shadow-[0_0_10px_rgba(59,130,246,0.5)]">
-                                            <span className="font-pixel text-xs text-white">RAW RSS FEEDS (100)</span>
-                                        </div>
-                                        <div className="w-48 h-8 bg-teal-500/80 border border-teal-400 flex justify-center items-center mb-1 shadow-[0_0_10px_rgba(20,184,166,0.5)]">
-                                            <span className="font-pixel text-xs text-white">FILTERED NEWS (10)</span>
-                                        </div>
-                                        <div className="w-32 h-8 bg-purple-500/80 border border-purple-400 flex justify-center items-center mb-1 shadow-[0_0_10px_rgba(168,85,247,0.5)]">
-                                            <span className="font-pixel text-xs text-white">HASH CHECKED (2)</span>
-                                        </div>
-                                        <div className="w-16 h-12 bg-orange-500/90 border border-orange-400 rounded-b flex justify-center items-center shadow-[0_0_15px_rgba(249,115,22,0.8)]">
-                                            <i className="fa-solid fa-play text-white"></i>
-                                        </div>
-                                    </div>
-                                    
-                                    {/* Desk Art */}
-                                    <div className="w-72 h-4 border-2 border-gray-600 bg-gray-800 rounded mt-4 flex px-4 gap-2 items-center rotate-x-12 perspective-1000">
-                                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                                        <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-                                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                                        {pipelineRunning && <span className="font-pixel text-[10px] text-green-400 ml-auto animate-pulse">PROCESSING...</span>}
-                                    </div>
-                                    <div className="w-64 h-8 border-x-2 border-gray-600 bg-gray-700"></div>
+  // Train
+  const doTrain=async()=>{
+    if(!trainText.trim()) return;
+    setTrainResult('กำลังเทรน...');
+    try{
+      const r=await fetch(API+'/api/train',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({agent:trainAgent,feedback:trainText})});
+      const d=await r.json();
+      setTrainResult(`✅ ${d.name} จำแล้ว (${d.memoryCount} ความจำ)`);
+      setTrainText('');
+      addNotif('เทรนสำเร็จ!');
+      // animate the character
+      const charMap={
+        'writer.json':'writer','reporter.json':'reporter','graphic.json':'graphic',
+        'publisher.json':'publisher','guardian.json':'guardian','pm.json':'pm'
+      };
+      const cid=charMap[trainAgent];
+      const ch=window.characters?.find(c=>c.id===cid);
+      if(ch){ch.showBubble('📚',100);window.addParticle?.(ch.x,ch.y-30,'#ffd54f','+EXP');}
+    }catch(e){setTrainResult('❌ '+e.message);}
+  };
 
-                                    {/* Background Grid Lines absolute */}
-                                    <div className="absolute inset-0 bg-[linear-gradient(rgba(16,185,129,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.05)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none"></div>
-                                </div>
-                            </div>
-                            
-                            {/* Bottom: Pixel Office + Briefing Room */}
-                            <div className="flex-[0.7] grid grid-cols-5 gap-5 min-h-0">
+  useEffect(()=>{chatEndRef.current?.scrollIntoView({behavior:'smooth'});},[chatLogs]);
+  useEffect(()=>{logEndRef.current?.scrollIntoView({behavior:'smooth'});},[logs]);
 
-                            {/* Pixel Office — Isometric */}
-                            <div className="panel panel-orange flex flex-col p-4 pt-6 min-h-0 col-span-3">
-                                <div className="panel-header text-neonOrange">PIXEL OFFICE</div>
-                                <div className="flex-1 border border-gray-700 rounded relative overflow-hidden" style={{ background: '#080c14', minHeight: '200px' }}>
-                                    {(() => {
-                                        const C = 44;
-                                        const GW = 9, GH = 7;
-                                        const CR = 'rotate(-45deg) scale(1, 1.786)';
-                                        const roomColor = (r, c) => {
-                                            if (r < 4 && c < 5) return '#131d2c';
-                                            if (r < 4 && c >= 5) return '#18132a';
-                                            if (r >= 4 && c < 5) return '#131d26';
-                                            return '#13201a';
-                                        };
-                                        const deskDefs = [
-                                            { id: 'scout', name: 'นักข่าว', color: '#10b981', r: 1, c: 1, emoji: '📡' },
-                                            { id: 'brain', name: 'นักเขียน', color: '#a855f7', r: 1, c: 3, emoji: '🧠' },
-                                            { id: 'guardian', name: 'ตรวจสอบ', color: '#ef4444', r: 2, c: 1, emoji: '🛡️' },
-                                            { id: 'anti', name: 'กราฟิก', color: '#f97316', r: 5, c: 1, emoji: '🎨' },
-                                            { id: 'publisher', name: 'โพสต์', color: '#3b82f6', r: 5, c: 3, emoji: '📤' },
-                                        ];
-                                        const srvPos = [[1,6],[2,6],[1,7],[2,7]];
-                                        const plantPos = [[0,0],[3,4],[6,8]];
-                                        const roomLabels = [
-                                            { name: 'MAIN OFFICE', r: 0, c: 1.2 },
-                                            { name: 'SERVER ROOM', r: 0, c: 5.8 },
-                                            { name: 'GRAPHICS', r: 4, c: 1.2 },
-                                            { name: 'KITCHEN', r: 4, c: 6 },
-                                        ];
-                                        return (
-                                            <React.Fragment>
-                                            {/* Isometric transformed world */}
-                                            <div style={{
-                                                position: 'absolute', top: '52%', left: '50%',
-                                                width: GW * C, height: GH * C,
-                                                transform: 'translate(-50%, -46%) scale(1, 0.56) rotate(45deg)',
-                                            }}>
-                                                {/* Floor tiles */}
-                                                {Array.from({ length: GH * GW }, (_, i) => {
-                                                    const r = Math.floor(i / GW), c = i % GW;
-                                                    return <div key={'f'+i} style={{
-                                                        position: 'absolute', left: c * C, top: r * C, width: C, height: C,
-                                                        background: roomColor(r, c),
-                                                        borderRight: '1px solid rgba(255,255,255,0.04)',
-                                                        borderBottom: '1px solid rgba(255,255,255,0.04)',
-                                                    }} />;
-                                                })}
+  // Expose characters for train animation
+  useEffect(()=>{window.characters=window.characters||[];},[]);
 
-                                                {/* Outer walls */}
-                                                <div style={{ position:'absolute',top:0,left:0,right:0,height:5,background:'#5a4232',zIndex:5,boxShadow:'0 2px 8px rgba(0,0,0,0.8)' }} />
-                                                <div style={{ position:'absolute',bottom:0,left:0,right:0,height:5,background:'#5a4232',zIndex:5 }} />
-                                                <div style={{ position:'absolute',top:0,bottom:0,left:0,width:5,background:'#5a4232',zIndex:5,boxShadow:'2px 0 8px rgba(0,0,0,0.8)' }} />
-                                                <div style={{ position:'absolute',top:0,bottom:0,right:0,width:5,background:'#5a4232',zIndex:5 }} />
+  const activeTokens=tokens.filter(t=>t.status==='active').length;
 
-                                                {/* Room divider walls */}
-                                                <div style={{ position:'absolute',left:5*C-2,top:0,width:5,height:GH*C,background:'#4a3828',zIndex:5 }} />
-                                                <div style={{ position:'absolute',top:4*C-2,left:0,height:5,width:5*C,background:'#4a3828',zIndex:5 }} />
-                                                <div style={{ position:'absolute',top:4*C-2,left:5*C,height:5,width:4*C,background:'#4a3828',zIndex:5 }} />
+  return <>
+    {/* TOP BAR */}
+    <div className="top-bar">
+      <div className="title">🎮 PANG NEWS CO.</div>
+      <div className="stat"><span className="label">TIME</span><span className="val">{time}</span></div>
+      <div className="stat"><span className="label">TOKENS</span><span className="val">{activeTokens}/{tokens.length}</span></div>
+      <div className="stat"><span className="label">STAFF</span><span className="val">{agents.length}</span></div>
+      <div className="stat">
+        <span className="label">MODE</span>
+        <span className={`status-badge ${postMode==='auto'?'status-auto':'status-running'}`}>
+          {postMode==='auto'?'⚡AUTO':'🔍APPROVE'}
+        </span>
+      </div>
+      <div className="stat"><span className="label">ENGINE</span><span className="status-badge status-auto">GitHub Actions 24/7</span></div>
+      {running && <div className="stat"><span className="status-badge status-running">⚙️ RUNNING...</span></div>}
+    </div>
 
-                                                {/* Door gaps */}
-                                                <div style={{ position:'absolute',left:5*C-4,top:2.5*C,width:12,height:C*0.8,background:'#131d2c',zIndex:6 }} />
-                                                <div style={{ position:'absolute',left:2*C,top:4*C-4,width:C*0.8,height:12,background:'#131d2c',zIndex:6 }} />
+    {/* NOTIFICATIONS */}
+    <div className="notif">
+      {notifs.map(n=><div key={n.id} className="notif-card">{n.msg}</div>)}
+    </div>
 
-                                                {/* Desks with monitors */}
-                                                {deskDefs.map((d, i) => {
-                                                    const st = agents.find(a => a.id === d.id);
-                                                    const on = st && st.status !== '[SLEEP]' && st.status !== '[STANDBY]';
-                                                    return <div key={'dk'+i} style={{
-                                                        position:'absolute', left: d.c*C+6, top: d.r*C+14,
-                                                        width: C-12, height: C/2, background:'#8B5E3C',
-                                                        border:'1px solid #5C3A1E', borderRadius:2,
-                                                        boxShadow:'0 3px 0 #3d2210, inset 1px 1px 0 rgba(255,255,255,0.15)', zIndex:3
-                                                    }}>
-                                                        <div style={{
-                                                            position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',
-                                                            width:16,height:12,borderRadius:1,
-                                                            background: on ? '#0c2d3f' : '#111',
-                                                            border:'1px solid '+(on?'#06b6d4':'#444'),
-                                                            boxShadow: on ? '0 0 10px rgba(6,182,212,0.8)' : 'none',
-                                                        }}>
-                                                            {on && <div style={{ position:'absolute',top:3,left:2,width:10,height:2,background:'#06b6d4',borderRadius:1,animation:'monitorBlink 1.5s infinite' }} />}
-                                                            {on && <div style={{ position:'absolute',top:7,left:2,width:7,height:2,background:'#10b981',borderRadius:1,animation:'monitorBlink 2s 0.3s infinite' }} />}
-                                                        </div>
-                                                        {/* Chair (below desk) */}
-                                                        <div style={{ position:'absolute',bottom:-10,left:'50%',transform:'translateX(-50%)',width:14,height:8,background:'#334155',borderRadius:'0 0 4px 4px',border:'1px solid #475569' }} />
-                                                    </div>;
-                                                })}
+    {/* BOTTOM BAR */}
+    <div className="bottom-bar">
+      <button className="btn-game btn-run" onClick={runPipeline} disabled={running}>
+        {running?'⚙️ Running...':'▶ Run Pipeline'}
+      </button>
+      <button className="btn-game btn-staff" onClick={()=>setPanel('staff')}>👥 Staff</button>
+      <button className="btn-game btn-chat" onClick={()=>setPanel('chat')}>💬 Chat PM</button>
+      <button className="btn-game btn-train" onClick={()=>setPanel('train')}>🎓 Train</button>
+      <button className="btn-game btn-log" onClick={()=>setPanel('log')}>📋 Log</button>
+      <button className="btn-game" style={{borderColor:'#ffd54f',color:'#ffd54f'}} onClick={toggleMode}>
+        {postMode==='auto'?'⚡ Auto Post':'🔍 Approve'}
+      </button>
+    </div>
 
-                                                {/* Server racks */}
-                                                {srvPos.map(([r,c], i) => (
-                                                    <div key={'sv'+i} style={{
-                                                        position:'absolute', left:c*C+5, top:r*C+4,
-                                                        width:C-10, height:C-8,
-                                                        background:'linear-gradient(180deg, #2a2a40 0%, #1e1e32 100%)',
-                                                        border:'2px solid #444', borderRadius:2, zIndex:3,
-                                                        boxShadow:'inset 1px 1px 0 rgba(255,255,255,0.1), 0 2px 4px rgba(0,0,0,0.5)'
-                                                    }}>
-                                                        <div style={{ position:'absolute',top:5,left:5,width:4,height:4,borderRadius:'50%',background:'#10b981',boxShadow:'0 0 6px #10b981' }} />
-                                                        <div style={{ position:'absolute',top:5,left:14,width:4,height:4,borderRadius:'50%',background:pipelineRunning?'#f97316':'#444',boxShadow:pipelineRunning?'0 0 6px #f97316':'none',animation:pipelineRunning?'pulse 1s infinite alternate':'none' }} />
-                                                        <div style={{ position:'absolute',top:5,left:23,width:4,height:4,borderRadius:'50%',background:'#06b6d4',boxShadow:'0 0 4px #06b6d4',animation:'monitorBlink 3s infinite' }} />
-                                                        {[14,20,26].map((y,j) => <div key={j} style={{ position:'absolute',top:y,left:5,width:C-20,height:3,background:'#333',borderRadius:1 }} />)}
-                                                    </div>
-                                                ))}
-
-                                                {/* Kitchen furniture */}
-                                                <div style={{ position:'absolute',left:6*C+6,top:5*C+6,width:C-12,height:C-12,background:'#555',border:'1px solid #666',borderRadius:3,zIndex:3 }}>
-                                                    <div style={{ position:'absolute',top:4,left:'50%',transform:'translateX(-50%)',width:8,height:8,borderRadius:'50%',background:'#b91c1c',boxShadow:'0 0 4px #ef4444' }} />
-                                                </div>
-                                                <div style={{ position:'absolute',left:7*C+4,top:5*C+4,width:C-8,height:C*1.2,background:'#e2e8f0',border:'2px solid #94a3b8',borderRadius:3,zIndex:3 }}>
-                                                    <div style={{ position:'absolute',top:'40%',left:0,right:0,height:2,background:'#94a3b8' }} />
-                                                </div>
-                                                <div style={{ position:'absolute',left:5.5*C,top:5.5*C+4,width:C*1.5,height:C*0.6,background:'#6b4423',border:'1px solid #5C3A1E',borderRadius:3,zIndex:2 }} />
-
-                                                {/* Plants */}
-                                                {plantPos.map(([r,c], i) => (
-                                                    <div key={'pl'+i} style={{ position:'absolute',left:c*C+C/2-8,top:r*C+C/2-8,width:16,height:16,zIndex:3 }}>
-                                                        <div style={{ width:14,height:14,borderRadius:'50%',background:'radial-gradient(circle, #22c55e 0%, #166534 70%)',border:'2px solid #15803d',boxShadow:'0 0 6px rgba(34,197,94,0.3)' }} />
-                                                        <div style={{ width:4,height:6,background:'#92400e',margin:'-2px auto 0',borderRadius:'0 0 2px 2px' }} />
-                                                    </div>
-                                                ))}
-
-                                                {/* Characters (counter-rotated to appear normal) */}
-                                                {deskDefs.map((emp, i) => {
-                                                    const agentState = agents.find(a => a.id === emp.id);
-                                                    const isActive = agentState && agentState.status !== '[SLEEP]' && agentState.status !== '[STANDBY]';
-                                                    return (
-                                                        <div key={'ch'+i} style={{
-                                                            position:'absolute',
-                                                            left: emp.c*C + C/2 - 8,
-                                                            top: emp.r*C - 8,
-                                                            transform: CR, transformOrigin:'center bottom',
-                                                            zIndex:10, textAlign:'center',
-                                                        }}>
-                                                            <div style={{ animation: isActive ? 'pixelTyping 0.6s infinite' : 'pixelIdle 3s infinite' }}>
-                                                                {isActive && <div style={{ fontSize:14, marginBottom:2, animation:'bubblePop 2s ease-in-out infinite' }}>{emp.emoji}</div>}
-                                                                {/* Head */}
-                                                                <div style={{ width:14,height:14,background:'#fcd9b6',borderRadius:2,margin:'0 auto',border:'1px solid #d4a574',position:'relative' }}>
-                                                                    <div style={{ position:'absolute',top:-3,left:-1,right:-1,height:6,background:emp.color,borderRadius:'3px 3px 0 0' }} />
-                                                                    <div style={{ position:'absolute',top:7,left:2,width:3,height:2,background:'#333',borderRadius:1 }} />
-                                                                    <div style={{ position:'absolute',top:7,right:2,width:3,height:2,background:'#333',borderRadius:1 }} />
-                                                                </div>
-                                                                {/* Body */}
-                                                                <div style={{ width:16,height:12,background:emp.color,margin:'0 auto',borderRadius:'0 0 3px 3px',opacity:isActive?1:0.5 }} />
-                                                            </div>
-                                                            {/* Name */}
-                                                            <div style={{ fontSize:9,fontFamily:'VT323,monospace',color:emp.color,textShadow:'0 0 6px '+emp.color,whiteSpace:'nowrap',marginTop:2 }}>{emp.name}</div>
-                                                        </div>
-                                                    );
-                                                })}
-
-                                                {/* Room labels (counter-rotated) */}
-                                                {roomLabels.map((rm, i) => (
-                                                    <div key={'rl'+i} style={{
-                                                        position:'absolute', left:rm.c*C, top:rm.r*C+6,
-                                                        transform:CR, transformOrigin:'left center', zIndex:20
-                                                    }}>
-                                                        <div style={{ fontSize:9,fontFamily:'VT323,monospace',color:'rgba(255,255,255,0.2)',letterSpacing:3,whiteSpace:'nowrap' }}>{rm.name}</div>
-                                                    </div>
-                                                ))}
-
-                                                {/* Company sign (counter-rotated) */}
-                                                <div style={{
-                                                    position:'absolute', left:'50%', top:-8,
-                                                    transform:'translateX(-50%) '+CR, zIndex:25,
-                                                    background:'#1c1512', border:'2px solid rgba(249,115,22,0.6)',
-                                                    padding:'2px 10px', borderRadius:3,
-                                                    boxShadow:'0 0 12px rgba(249,115,22,0.3)'
-                                                }}>
-                                                    <span style={{ fontFamily:'Silkscreen,VT323,monospace',fontSize:11,color:'#f97316',letterSpacing:3,textShadow:'0 0 8px rgba(249,115,22,0.7)' }}>PANG GAME CO.</span>
-                                                </div>
-                                            </div>
-
-                                            {/* Pang mascot */}
-                                            <div style={{ position:'absolute',bottom:6,right:6,width:28,height:28,background:'rgba(244,114,182,0.15)',border:'1px solid rgba(244,114,182,0.4)',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',zIndex:30 }}>
-                                                <span style={{ fontSize:14 }}>🩷</span>
-                                            </div>
-                                            </React.Fragment>
-                                        );
-                                    })()}
-                                </div>
-                            </div>
-
-                            {/* Briefing Room */}
-                            <div className="panel panel-orange flex flex-col p-4 pt-6 min-h-0 col-span-2">
-                                <div className="panel-header text-neonOrange">BRIEFING ROOM (CHAT)</div>
-                                
-                                <div className="flex-1 bg-black/80 border border-gray-700 rounded flex flex-col overflow-hidden font-game shadow-inner">
-                                    <div className="flex-1 overflow-y-auto p-3 text-[13px] whitespace-pre-wrap">
-                                        {chatLogs.map((log, i) => {
-                                            let nameColor = 'text-gray-300';
-                                            let msgColor = 'text-gray-100';
-                                            
-                                            if (log.isSys) { nameColor = 'text-yellow-400'; msgColor = 'text-yellow-200'; }
-                                            else if (log.isAdmin) { nameColor = 'text-red-400'; msgColor = 'text-red-200'; }
-                                            else if (log.agent === 'Router (CEO)') nameColor = 'text-blue-400';
-                                            else if (log.agent === 'Researcher') nameColor = 'text-teal-400';
-                                            else if (log.agent === 'Executor') nameColor = 'text-purple-400';
-                                            else if (log.agent === 'Summarizer') nameColor = 'text-indigo-400';
-                                            else if (log.agent === 'Guardian') nameColor = 'text-orange-400';
-                                            
-                                            if (log.isAlert) msgColor = 'text-red-400 font-bold';
-
-                                            return (
-                                                <div key={i} className={`mb-1 ${log.isAlert ? 'bg-red-900/30' : ''}`}>
-                                                    <span className="text-gray-500 text-xs">[{log.sysTime}]</span>{' '}
-                                                    <span className={`font-bold ${nameColor}`}>[{log.agent}]</span>
-                                                    <span className={msgColor}>: {log.msg}</span>
-                                                </div>
-                                            );
-                                        })}
-                                        <div ref={logsEndRef} />
-                                    </div>
-                                    
-                                    {/* Input */}
-                                    <div className="bg-gray-900 border-t border-gray-700 p-2 flex gap-2">
-                                        <input
-                                            type="text"
-                                            className="bg-black/50 border border-gray-700 flex-1 py-1 px-2 text-sm text-white outline-none rounded font-pixel"
-                                            placeholder="> _"
-                                            value={chatInput}
-                                            onChange={(e) => setChatInput(e.target.value)}
-                                            onKeyDown={handleChatSubmit}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                            </div> {/* end grid Pixel Office + Briefing */}
-                        </div>
-
-                        {/* RIGHT: Plugins & Logs */}
-                        <div className="col-span-1 lg:col-span-3 flex flex-col gap-5 min-h-0">
-                            
-                            {/* AI Token Tracker — Dynamic */}
-                            <div className="panel panel-green flex-1 flex flex-col p-4 pt-6">
-                                <div className="panel-header text-neonGreen">AI TOKENS</div>
-                                <div className="flex flex-col h-full bg-black/40 border border-gray-800 p-3 rounded gap-3">
-                                    <div className="flex justify-between items-center">
-                                        <span className="font-bold text-gray-400 text-xs">COST</span>
-                                        <span className="font-pixel text-2xl text-neonGreen drop-shadow-[0_0_5px_currentColor]">฿0</span>
-                                    </div>
-
-                                    {tokenData.length === 0 ? (
-                                        <div className="text-xs text-gray-500 text-center py-4">Loading...</div>
-                                    ) : tokenData.map(function(tk, i) {
-                                        var colorMap = { orange: 'text-orange-300', blue: 'text-blue-300', teal: 'text-teal-300', purple: 'text-purple-300', cyan: 'text-cyan-300' };
-                                        var barColorMap = { orange: 'bg-orange-400', blue: 'bg-blue-400', teal: 'bg-teal-400', purple: 'bg-purple-400', cyan: 'bg-cyan-400' };
-                                        var textColor = colorMap[tk.color] || 'text-gray-300';
-                                        var barColor = barColorMap[tk.color] || 'bg-neonGreen';
-                                        var statusText = tk.status === 'active' ? 'ACTIVE' : tk.status === 'quota_exceeded' ? 'QUOTA FULL' : tk.status === 'no_key' ? 'NO KEY' : tk.status === 'error' ? 'ERROR' : 'OFFLINE';
-                                        var statusColor = tk.status === 'active' ? 'text-neonGreen' : tk.status === 'quota_exceeded' ? 'text-red-400' : 'text-gray-500';
-                                        var pct = tk.pct != null ? (tk.limit ? (100 - tk.pct) : tk.pct) : (tk.status === 'active' ? 5 : 0);
-
-                                        return React.createElement('div', { key: i, className: 'bg-black/50 p-2 rounded border border-gray-800' },
-                                            React.createElement('div', { className: 'flex justify-between items-center mb-1' },
-                                                React.createElement('span', { className: 'text-xs font-bold ' + textColor }, tk.name),
-                                                React.createElement('span', { className: 'font-pixel text-sm ' + statusColor }, statusText)
-                                            ),
-                                            React.createElement('div', { className: 'text-[10px] text-gray-500 mb-1' }, tk.role),
-                                            tk.limit ? React.createElement('div', null,
-                                                React.createElement('div', { className: 'w-full h-2 bg-gray-800 rounded overflow-hidden' },
-                                                    React.createElement('div', { className: 'h-full rounded ' + barColor, style: { width: pct + '%' } })
-                                                ),
-                                                React.createElement('div', { className: 'flex justify-between text-[10px] text-gray-500 mt-1' },
-                                                    React.createElement('span', null, 'ใช้ ' + tk.used + '/' + tk.limit + ' posts'),
-                                                    React.createElement('span', null, (100 - pct) + '% เหลือ')
-                                                )
-                                            ) : null
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            {/* Guardian Settings */}
-                            <div className="panel panel-green flex-1 flex flex-col p-4 pt-6">
-                                <div className="panel-header text-neonGreen">GUARDIAN LOG</div>
-                                <div className="flex-1 bg-gray-900 border border-gray-700 rounded p-3 flex flex-col gap-2 relative overflow-hidden">
-                                     <div className="flex items-center gap-3 mb-2">
-                                         <i className="fa-solid fa-shield text-orange-400 text-2xl drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]"></i>
-                                         <div>
-                                            <div className="text-xs font-bold text-gray-300">TOKEN SHIELD</div>
-                                            <div className="text-[10px] text-gray-500">mistral-large-latest</div>
-                                         </div>
-                                     </div>
-                                     <div className="flex items-center justify-between bg-black/50 p-2 rounded border border-gray-800">
-                                         <span className="text-[10px] text-gray-400">maxOutputTokens</span>
-                                         <span className="font-pixel text-neonGreen">600</span>
-                                     </div>
-                                     <div className="flex items-center justify-between bg-black/50 p-2 rounded border border-gray-800">
-                                         <span className="text-[10px] text-gray-400">Hash Match</span>
-                                         <span className="font-pixel text-blue-400">PASSED</span>
-                                     </div>
-                                     {pipelineRunning && (
-                                         <div className="absolute inset-0 bg-blue-900/30 flex items-center justify-center font-pixel text-neonBlue tracking-widest animate-pulse border-2 border-neonBlue">
-                                            CHECKING...
-                                         </div>
-                                     )}
-                                </div>
-                            </div>
-                            
-
-                        </div>
-                    </div>
-                    {/* === Modal Overlay === */}
-                    {showPanel && (
-                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setShowPanel(null)}>
-                            <div className={`panel panel-orange w-full flex flex-col p-6 pt-8 overflow-hidden ${showPanel === 'pending' ? 'max-w-5xl max-h-[90vh]' : 'max-w-2xl max-h-[80vh]'}`} onClick={e => e.stopPropagation()}>
-                                <div className="panel-header text-neonOrange">
-                                    {showPanel === 'agents' ? '👥 TEAM ROSTER' : showPanel === 'memory' ? '🧠 AGENT MEMORY' : showPanel === 'chat' ? '💬 คุยกับหัวหน้างาน (PM)' : showPanel === 'pending' ? '📋 รอตรวจงาน' : '📝 TRAIN AGENT'}
-                                </div>
-
-                                {/* Close */}
-                                <button onClick={() => setShowPanel(null)} className="absolute top-2 right-4 text-gray-400 hover:text-white text-xl font-bold">✕</button>
-
-                                <div className="flex-1 overflow-y-auto mt-2">
-
-                                    {/* ดูพนักงาน */}
-                                    {showPanel === 'agents' && (
-                                        <div className="flex flex-col gap-3">
-                                            {agentList.length === 0 && <div className="text-gray-400 font-pixel">กำลังโหลด...</div>}
-                                            {agentList.map((a, i) => (
-                                                <div key={i} className="bg-black/50 border border-gray-700 rounded p-3 flex justify-between items-center">
-                                                    <div>
-                                                        <div className="text-[#fed7aa] font-bold">{a.name}</div>
-                                                        <div className="text-gray-400 text-xs">{a.role}</div>
-                                                        <div className="text-gray-500 text-xs mt-1">{a.provider}/{a.model}</div>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <div className="font-pixel text-neonBlue text-lg">{a.memoryCount}</div>
-                                                        <div className="text-gray-500 text-xs">memories</div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    {/* ดู Memory */}
-                                    {showPanel === 'memory' && (
-                                        <div className="flex flex-col gap-4">
-                                            {Object.keys(allMemory).length === 0 && <div className="text-gray-400 font-pixel">กำลังโหลด...</div>}
-                                            {Object.entries(allMemory).map(([name, mems]) => {
-                                                const arr = Array.isArray(mems) ? mems : [];
-                                                return (
-                                                <div key={name} className="bg-black/50 border border-gray-700 rounded p-3">
-                                                    <div className="text-neonOrange font-pixel text-lg mb-2">{name} ({arr.length} ความจำ)</div>
-                                                    {arr.length === 0 && <div className="text-gray-500 text-xs">(ยังไม่มี feedback)</div>}
-                                                    {arr.map((m, i) => (
-                                                        <div key={i} className="text-xs text-gray-300 mb-1 pl-2 border-l-2 border-gray-600">
-                                                            <span className="text-gray-500">{m.date ? m.date.slice(0,10) : ''}</span>{' '}
-                                                            <span className="text-neonBlue">[{m.from}]</span>{' '}
-                                                            {typeof m.feedback === 'string' ? m.feedback : JSON.stringify(m.feedback)}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-
-                                    {/* คุยกับ PM */}
-                                    {showPanel === 'chat' && (
-                                        <div className="flex flex-col gap-3 h-full">
-                                            <div className="text-gray-500 text-xs">พิมพ์สั่ง PM ได้เลย เช่น "สอนนักเขียนว่า caption ห้ามยาวเกิน 3 บรรทัด" หรือ "สรุปสถานะทีมหน่อย"</div>
-
-                                            {/* Chat messages */}
-                                            <div className="flex-1 overflow-y-auto bg-black/60 border border-gray-700 rounded p-3 flex flex-col gap-2 min-h-[200px] max-h-[400px]">
-                                                {pmChatLogs.length === 0 && <div className="text-gray-500 text-sm text-center mt-8">เริ่มคุยกับ PM ได้เลย</div>}
-                                                {pmChatLogs.map((msg, i) => (
-                                                    <div key={i} className={`flex ${msg.from === 'admin' ? 'justify-end' : 'justify-start'}`}>
-                                                        <div className={`max-w-[80%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap ${msg.from === 'admin' ? 'bg-neonBlue/20 text-neonBlue border border-neonBlue/30' : 'bg-neonOrange/20 text-[#fed7aa] border border-neonOrange/30'}`}>
-                                                            <div className="text-[10px] font-pixel mb-1 opacity-60">{msg.from === 'admin' ? 'แอดมิน' : 'PM (AI)'}</div>
-                                                            {msg.text}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                                {pmChatLoading && (
-                                                    <div className="text-neonOrange font-pixel text-sm animate-pulse">PM กำลังคิด...</div>
-                                                )}
-                                            </div>
-
-                                            {/* Input */}
-                                            <div className="flex gap-2">
-                                                <input
-                                                    type="text"
-                                                    value={pmChatInput}
-                                                    onChange={e => setPmChatInput(e.target.value)}
-                                                    onKeyDown={e => e.key === 'Enter' && handlePmChat()}
-                                                    placeholder="พิมพ์ข้อความถึง PM..."
-                                                    className="flex-1 bg-black/80 border border-gray-600 text-white p-2 rounded font-pixel"
-                                                    disabled={pmChatLoading}
-                                                />
-                                                <button
-                                                    onClick={handlePmChat}
-                                                    disabled={pmChatLoading || !pmChatInput.trim()}
-                                                    className="px-4 py-2 rounded font-pixel border-2 border-neonOrange text-neonOrange hover:bg-neonOrange/20 disabled:opacity-30 transition-all">
-                                                    ส่ง
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* รอตรวจงาน — Pending Posts */}
-                                    {showPanel === 'pending' && (
-                                        <div>
-                                            {pendingPosts.length === 0 ? (
-                                                <div className="text-gray-400 font-pixel text-center py-8">ไม่มีงานรอตรวจ</div>
-                                            ) : (
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 justify-items-center">
-                                                    {pendingPosts.map(function(p) {
-                                                        return p.items.map(function(item, j) {
-                                                            return React.createElement('div', { key: p.id + '-' + j, className: 'bg-white rounded-lg shadow-xl overflow-hidden w-full max-w-[380px]' },
-                                                                React.createElement('div', { className: 'flex items-center gap-3 p-3 pb-2' },
-                                                                    React.createElement('div', { className: 'w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg' }, 'P'),
-                                                                    React.createElement('div', null,
-                                                                        React.createElement('div', { className: 'text-[#050505] font-semibold text-sm leading-tight' }, 'เกมปังv2'),
-                                                                        React.createElement('div', { className: 'text-[#65676b] text-xs' }, p.time)
-                                                                    )
-                                                                ),
-                                                                item.sourceUrl ? React.createElement('div', { className: 'px-3 pb-1' },
-                                                                    React.createElement('a', { href: item.sourceUrl, target: '_blank', rel: 'noopener', className: 'inline-flex items-center gap-1 text-[11px] text-blue-500 hover:underline bg-blue-50 px-2 py-0.5 rounded-full' },
-                                                                        React.createElement('svg', { className: 'w-3 h-3', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 },
-                                                                            React.createElement('path', { d: 'M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3' })
-                                                                        ),
-                                                                        (item.sourceName || 'Source')
-                                                                    )
-                                                                ) : null,
-                                                                React.createElement('div', { className: 'px-3 pb-2 text-[#050505] text-sm leading-relaxed whitespace-pre-wrap overflow-hidden', style: { fontFamily: 'Helvetica, Arial, sans-serif', maxHeight: '120px', WebkitMaskImage: 'linear-gradient(180deg, #000 70%, transparent)' } }, item.caption),
-                                                                (item.image && !item.image.includes('youtube.com') && !item.image.includes('youtu.be')) ? React.createElement('img', { src: item.image, className: 'w-full aspect-square object-cover' }) : (
-                                                                    React.createElement('div', { className: 'w-full aspect-square bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center' },
-                                                                        React.createElement('div', { className: 'text-center p-6' },
-                                                                            React.createElement('div', { className: 'text-2xl font-bold text-white mb-2' }, item.headline),
-                                                                            React.createElement('div', { className: 'text-sm ' + (item.mood === 'fail' ? 'text-red-400' : 'text-green-400') }, item.mood === 'fail' ? 'FAIL' : 'GOOD')
-                                                                        )
-                                                                    )
-                                                                ),
-                                                                React.createElement('div', { className: 'px-3 pt-2 pb-1' },
-                                                                    React.createElement('span', { className: 'text-xs px-2 py-0.5 rounded-full ' + (item.mood === 'fail' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600') }, item.mood === 'fail' ? 'FAIL' : 'GOOD'),
-                                                                    React.createElement('span', { className: 'text-xs text-[#65676b] ml-2' }, item.headline)
-                                                                ),
-                                                                (function() {
-                                                                    var key = p.id + '-' + j;
-                                                                    if (rejectingKey === key) {
-                                                                        return React.createElement('div', { className: 'p-3 bg-gray-50 border-t border-gray-200' },
-                                                                            React.createElement('div', { className: 'text-xs text-gray-500 mb-1' }, 'เหตุผลที่ไม่เอา:'),
-                                                                            React.createElement('input', { type: 'text', value: rejectReason, onChange: function(e) { setRejectReason(e.target.value); }, onKeyDown: function(e) { if (e.key === 'Enter') confirmReject(p.id, j); }, placeholder: 'เช่น caption ยาวไป...', className: 'w-full border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-800 mb-2 outline-none focus:border-blue-400', autoFocus: true }),
-                                                                            React.createElement('div', { className: 'flex gap-2' },
-                                                                                React.createElement('button', { onClick: function() { confirmReject(p.id, j); }, className: 'flex-1 py-2 bg-red-500 text-white font-bold text-sm rounded hover:bg-red-600' }, 'ยืนยัน — ลบ + สอน'),
-                                                                                React.createElement('button', { onClick: function() { setRejectingKey(null); }, className: 'flex-1 py-2 bg-gray-200 text-gray-600 font-bold text-sm rounded hover:bg-gray-300' }, 'ยกเลิก')
-                                                                            )
-                                                                        );
-                                                                    }
-                                                                    var isApproving = approvingKey === key;
-                                                                    return React.createElement('div', { className: 'flex gap-0' },
-                                                                        React.createElement('button', { onClick: function() { if (!isApproving) approvePending(p.id, j); }, disabled: isApproving, className: 'flex-1 py-3 text-white font-bold text-sm transition-colors ' + (isApproving ? 'bg-blue-400 cursor-wait' : 'bg-[#1877f2] hover:bg-[#166fe5]') }, isApproving ? 'กำลังโพสต์...' : 'อนุมัติ — โพสต์เลย'),
-                                                                        React.createElement('button', { onClick: function() { startReject(p.id, j); }, disabled: isApproving, className: 'flex-1 py-3 bg-gray-100 text-red-500 font-bold text-sm hover:bg-gray-200 transition-colors' }, 'ไม่เอา')
-                                                                    );
-                                                                })()
-                                                            );
-                                                        });
-                                                    })}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Pipeline Output removed — แสดงใน Briefing Room แทน */}
-
-                    {/* === Analytics Modal === */}
-                    {showAnalytics && (
-                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setShowAnalytics(false)}>
-                            <div className="panel panel-green w-full max-w-4xl max-h-[85vh] flex flex-col p-6 pt-8" onClick={e => e.stopPropagation()}>
-                                <div className="panel-header text-cyan-400">ANALYTICS - Facebook</div>
-                                <button onClick={() => setShowAnalytics(false)} className="absolute top-2 right-4 text-gray-400 hover:text-white text-xl font-bold">X</button>
-                                <div className="flex-1 overflow-y-auto mt-2 space-y-3">
-                                    {analytics.length === 0 ? (
-                                        <div className="text-gray-500 text-center py-8">Loading...</div>
-                                    ) : analytics.map(function(post, i) {
-                                        var totalReactions = 0;
-                                        if (post.reactions) {
-                                            var keys = Object.keys(post.reactions);
-                                            for (var k = 0; k < keys.length; k++) { totalReactions += post.reactions[keys[k]]; }
-                                        }
-                                        var date = new Date(post.created_time).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
-                                        var reachBar = post.reach > 0 ? Math.min(100, Math.round(post.reach / 10)) : 0;
-
-                                        return React.createElement('div', { key: i, className: 'bg-black/60 border border-gray-700 rounded p-3 flex gap-3' },
-                                            post.image ? React.createElement('img', { src: post.image, className: 'w-16 h-16 rounded object-cover flex-shrink-0' }) : null,
-                                            React.createElement('div', { className: 'flex-1 min-w-0' },
-                                                React.createElement('div', { className: 'text-xs text-gray-500' }, date),
-                                                React.createElement('div', { className: 'text-sm text-gray-200 truncate mt-1' }, post.message || '(no text)'),
-                                                React.createElement('div', { className: 'flex gap-4 mt-2 text-xs' },
-                                                    React.createElement('span', { className: 'text-blue-400' }, 'Like ' + post.likes),
-                                                    React.createElement('span', { className: 'text-green-400' }, 'Comment ' + post.comments),
-                                                    React.createElement('span', { className: 'text-yellow-400' }, 'Share ' + post.shares),
-                                                    React.createElement('span', { className: 'text-purple-400' }, 'Reach ' + post.reach),
-                                                    React.createElement('span', { className: 'text-cyan-400' }, 'Engaged ' + post.engaged)
-                                                ),
-                                                React.createElement('div', { className: 'w-full h-1.5 bg-gray-800 rounded mt-2 overflow-hidden' },
-                                                    React.createElement('div', { className: 'h-full bg-cyan-500 rounded', style: { width: reachBar + '%' } })
-                                                )
-                                            )
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* === Pending Posts — ย้ายไปอยู่ใน Modal แล้ว (กดปุ่ม รอตรวจงาน) === */}
-                    {false && pendingPosts.length > 0 && (
-                        <div className="mt-4 flex-shrink-0">
-                            <div className="text-gray-400 text-sm mb-3 text-center font-pixel tracking-wider">รอตรวจ — Preview ก่อนลงเพจ</div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4 justify-items-center">
-                                {pendingPosts.map(function(p) {
-                                    return p.items.map(function(item, j) {
-                                        return React.createElement('div', { key: p.id + '-' + j, className: 'bg-white rounded-lg shadow-xl overflow-hidden w-full max-w-[380px]' },
-                                            /* FB Header */
-                                            React.createElement('div', { className: 'flex items-center gap-3 p-3 pb-2' },
-                                                React.createElement('div', { className: 'w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg' }, 'P'),
-                                                React.createElement('div', null,
-                                                    React.createElement('div', { className: 'text-[#050505] font-semibold text-sm leading-tight' }, 'เกมปังv2'),
-                                                    React.createElement('div', { className: 'text-[#65676b] text-xs flex items-center gap-1' },
-                                                        p.time,
-                                                        ' · ',
-                                                        React.createElement('svg', { className: 'w-3 h-3 inline', viewBox: '0 0 16 16', fill: '#65676b' },
-                                                            React.createElement('path', { d: 'M8 0a8 8 0 100 16A8 8 0 008 0zm3.7 7.3l-1 1a.5.5 0 01-.7 0L8.5 6.8V12a.5.5 0 01-1 0V6.8L6 8.3a.5.5 0 01-.7-.7l2.5-2.5a.5.5 0 01.7 0l2.5 2.5c.2.2.2.5 0 .7z' })
-                                                        )
-                                                    )
-                                                )
-                                            ),
-                                            /* Source badge */
-                                            item.sourceUrl ? React.createElement('div', { className: 'px-3 pb-1' },
-                                                React.createElement('a', {
-                                                    href: item.sourceUrl,
-                                                    target: '_blank',
-                                                    rel: 'noopener',
-                                                    className: 'inline-flex items-center gap-1 text-[11px] text-blue-500 hover:underline bg-blue-50 px-2 py-0.5 rounded-full'
-                                                },
-                                                    React.createElement('svg', { className: 'w-3 h-3', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 },
-                                                        React.createElement('path', { d: 'M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3' })
-                                                    ),
-                                                    (item.sourceName || new URL(item.sourceUrl).hostname)
-                                                )
-                                            ) : null,
-                                            /* Caption — จำกัดความสูง */
-                                            React.createElement('div', { className: 'px-3 pb-2 text-[#050505] text-sm leading-relaxed whitespace-pre-wrap overflow-hidden', style: { fontFamily: 'Helvetica, Arial, sans-serif', maxHeight: '120px', WebkitMaskImage: 'linear-gradient(180deg, #000 70%, transparent)' } }, item.caption),
-                                            /* Image — เช็ค YouTube URL */
-                                            (item.image && !item.image.includes('youtube.com') && !item.image.includes('youtu.be')) ? React.createElement('img', { src: item.image, className: 'w-full aspect-square object-cover' }) : (
-                                                React.createElement('div', { className: 'w-full aspect-square bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center' },
-                                                    React.createElement('div', { className: 'text-center p-6' },
-                                                        React.createElement('div', { className: 'text-2xl font-bold text-white mb-2' }, item.headline),
-                                                        React.createElement('div', { className: 'text-sm ' + (item.mood === 'fail' ? 'text-red-400' : 'text-green-400') },
-                                                            item.mood === 'fail' ? 'FAIL' : 'GOOD'
-                                                        )
-                                                    )
-                                                )
-                                            ),
-                                            /* Mood badge */
-                                            React.createElement('div', { className: 'px-3 pt-2 pb-1' },
-                                                React.createElement('span', { className: 'text-xs px-2 py-0.5 rounded-full ' + (item.mood === 'fail' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600') },
-                                                    item.mood === 'fail' ? 'FAIL' : 'GOOD'
-                                                ),
-                                                React.createElement('span', { className: 'text-xs text-[#65676b] ml-2' }, item.headline)
-                                            ),
-                                            /* FB reaction bar */
-                                            React.createElement('div', { className: 'flex items-center justify-between px-3 py-1.5 text-[#65676b] text-xs border-b border-gray-200' },
-                                                React.createElement('span', null, '0 reactions'),
-                                                React.createElement('span', null, '0 comments · 0 shares')
-                                            ),
-                                            /* FB action buttons */
-                                            React.createElement('div', { className: 'grid grid-cols-3 border-b border-gray-200' },
-                                                React.createElement('div', { className: 'flex items-center justify-center gap-1 py-2 text-[#65676b] text-sm font-semibold' },
-                                                    React.createElement('svg', { className: 'w-5 h-5', viewBox: '0 0 24 24', fill: 'none', stroke: '#65676b', strokeWidth: 2 },
-                                                        React.createElement('path', { d: 'M14 9V5a3 3 0 00-6 0v4H5l1 12h12l1-12h-5z' })
-                                                    ),
-                                                    'Like'
-                                                ),
-                                                React.createElement('div', { className: 'flex items-center justify-center gap-1 py-2 text-[#65676b] text-sm font-semibold' },
-                                                    React.createElement('svg', { className: 'w-5 h-5', viewBox: '0 0 24 24', fill: 'none', stroke: '#65676b', strokeWidth: 2 },
-                                                        React.createElement('path', { d: 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z' })
-                                                    ),
-                                                    'Comment'
-                                                ),
-                                                React.createElement('div', { className: 'flex items-center justify-center gap-1 py-2 text-[#65676b] text-sm font-semibold' },
-                                                    React.createElement('svg', { className: 'w-5 h-5', viewBox: '0 0 24 24', fill: 'none', stroke: '#65676b', strokeWidth: 2 },
-                                                        React.createElement('path', { d: 'M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13' })
-                                                    ),
-                                                    'Share'
-                                                )
-                                            ),
-                                            /* Approve / Reject — per item */
-                                            (function() {
-                                              var key = p.id + '-' + j;
-                                              if (rejectingKey === key) {
-                                                return React.createElement('div', { className: 'p-3 bg-gray-50 border-t border-gray-200' },
-                                                  React.createElement('div', { className: 'text-xs text-gray-500 mb-1' }, 'เหตุผลที่ไม่เอา (PM จะเอาไปสอนนักเขียน):'),
-                                                  React.createElement('input', {
-                                                    type: 'text',
-                                                    value: rejectReason,
-                                                    onChange: function(e) { setRejectReason(e.target.value); },
-                                                    onKeyDown: function(e) { if (e.key === 'Enter') confirmReject(p.id, j); },
-                                                    placeholder: 'เช่น caption ยาวไป / ข้อมูลผิด...',
-                                                    className: 'w-full border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-800 mb-2 outline-none focus:border-blue-400',
-                                                    autoFocus: true
-                                                  }),
-                                                  React.createElement('div', { className: 'flex gap-2' },
-                                                    React.createElement('button', {
-                                                      onClick: function() { confirmReject(p.id, j); },
-                                                      className: 'flex-1 py-2 bg-red-500 text-white font-bold text-sm rounded hover:bg-red-600'
-                                                    }, 'ยืนยัน — ลบ + สอน'),
-                                                    React.createElement('button', {
-                                                      onClick: function() { setRejectingKey(null); },
-                                                      className: 'flex-1 py-2 bg-gray-200 text-gray-600 font-bold text-sm rounded hover:bg-gray-300'
-                                                    }, 'ยกเลิก')
-                                                  )
-                                                );
-                                              }
-                                              var btnKey = p.id + '-' + j;
-                                              var isApproving = approvingKey === btnKey;
-                                              return React.createElement('div', { className: 'flex gap-0' },
-                                                React.createElement('button', {
-                                                  onClick: function() { if (!isApproving) approvePending(p.id, j); },
-                                                  disabled: isApproving,
-                                                  className: 'flex-1 py-3 text-white font-bold text-sm transition-colors ' + (isApproving ? 'bg-blue-400 cursor-wait' : 'bg-[#1877f2] hover:bg-[#166fe5]')
-                                                }, isApproving ? 'กำลังโพสต์...' : 'อนุมัติ — โพสต์เลย'),
-                                                React.createElement('button', {
-                                                  onClick: function() { startReject(p.id, j); },
-                                                  disabled: isApproving,
-                                                  className: 'flex-1 py-3 bg-gray-100 text-red-500 font-bold text-sm hover:bg-gray-200 transition-colors'
-                                                }, 'ไม่เอา')
-                                              );
-                                            })()
-                                        );
-                                    });
-                                })}
-                            </div>
-                        </div>
-                    )}
+    {/* PANELS */}
+    {panel==='staff' && <div className="panel-overlay" onClick={e=>{if(e.target===e.currentTarget)setPanel(null)}}>
+      <div className="panel">
+        <div className="panel-title" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          👥 STAFF LIST
+          <button className="btn-game btn-close" onClick={()=>setPanel(null)}>✕</button>
+        </div>
+        <div className="panel-body">
+          {agents.map((a,i)=>(
+            <div key={i} className="emp-card">
+              <div className="emp-avatar" style={{borderColor:Object.values(PAL)[Object.keys(PAL).indexOf(a.file?.replace('.json',''))]||'#888',color:Object.values(PAL)[Object.keys(PAL).indexOf(a.file?.replace('.json',''))]||'#888'}}>
+                {['👔','📰','✍️','🔍','🎨','📱'][i]||'👤'}
+              </div>
+              <div className="emp-info">
+                <div className="emp-name" style={{color:Object.values(PAL)[Object.keys(PAL).indexOf(a.file?.replace('.json',''))]||'#ccc'}}>{a.name||a.file}</div>
+                <div className="emp-role">{a.role||a.description||'-'}</div>
+                <div style={{display:'flex',gap:'8px',marginTop:'4px',fontSize:'10px'}}>
+                  <span style={{color:'#a1887f'}}>AI: {a.provider}/{a.model}</span>
+                  <span style={{color:'#ffd54f'}}>💾 {a.memoryCount} mem</span>
                 </div>
-            );
-        };
+              </div>
+              <div className="emp-stars">{'⭐'.repeat(Math.min(5,Math.max(1,Math.ceil(a.memoryCount/3))))}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>}
 
-        /* Pending posts ย้ายมาอยู่ inline แล้ว */
+    {panel==='chat' && <div className="panel-overlay" onClick={e=>{if(e.target===e.currentTarget)setPanel(null)}}>
+      <div className="panel">
+        <div className="panel-title" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          💬 CHAT WITH PM
+          <button className="btn-game btn-close" onClick={()=>setPanel(null)}>✕</button>
+        </div>
+        <div className="panel-body">
+          <div className="chat-box">
+            {chatLogs.map((m,i)=>(
+              <div key={i} className={`chat-msg ${m.from}`}>
+                <strong>{m.from==='pm'?'🤖 PM':m.from==='user'?'👤 You':'⚙️ SYS'}:</strong> {m.text}
+              </div>
+            ))}
+            {chatLoading && <div className="chat-msg pm" style={{opacity:0.5}}>🤖 PM กำลังคิด...</div>}
+            <div ref={chatEndRef}/>
+          </div>
+          <input className="chat-input" placeholder="พิมพ์ข้อความถึง PM..."
+            value={chatInput} onChange={e=>setChatInput(e.target.value)}
+            onKeyDown={e=>{if(e.key==='Enter')sendChat()}}/>
+        </div>
+      </div>
+    </div>}
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+    {panel==='train' && <div className="panel-overlay" onClick={e=>{if(e.target===e.currentTarget)setPanel(null)}}>
+      <div className="panel">
+        <div className="panel-title" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          🎓 TRAIN STAFF
+          <button className="btn-game btn-close" onClick={()=>setPanel(null)}>✕</button>
+        </div>
+        <div className="panel-body">
+          <div style={{marginBottom:'8px',fontSize:'12px',color:'#a1887f'}}>เลือกพนักงานที่จะสอน แล้วพิมพ์ feedback</div>
+          <select className="train-select" value={trainAgent} onChange={e=>setTrainAgent(e.target.value)}>
+            <option value="writer.json">✍️ นักเขียน</option>
+            <option value="reporter.json">📰 นักข่าว</option>
+            <option value="graphic.json">🎨 กราฟิก</option>
+            <option value="publisher.json">📱 โพสต์</option>
+            <option value="guardian.json">🔍 ตรวจสอบ</option>
+            <option value="pm.json">👔 PM</option>
+          </select>
+          <textarea className="train-textarea" placeholder="เช่น: caption สั้นลง ไม่เกิน 3 บรรทัด"
+            value={trainText} onChange={e=>setTrainText(e.target.value)}/>
+          <button className="btn-game btn-train" style={{width:'100%',padding:'10px'}} onClick={doTrain}>🎓 TRAIN!</button>
+          {trainResult && <div style={{marginTop:'8px',fontSize:'12px',color:trainResult.startsWith('✅')?'#4caf50':'#f44336'}}>{trainResult}</div>}
+        </div>
+      </div>
+    </div>}
+
+    {panel==='log' && <div className="panel-overlay" onClick={e=>{if(e.target===e.currentTarget)setPanel(null)}}>
+      <div className="panel">
+        <div className="panel-title" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          📋 ACTIVITY LOG
+          <button className="btn-game btn-close" onClick={()=>setPanel(null)}>✕</button>
+        </div>
+        <div className="panel-body">
+          <div className="log-box">
+            {logs.length===0 && <div style={{color:'#5d4037',fontSize:'11px'}}>ยังไม่มี log — กด Run Pipeline เพื่อเริ่ม</div>}
+            {logs.map((l,i)=>(
+              <div key={i} className={`log-line ${l.err?'err':''}`}>[{l.t}] {l.msg}</div>
+            ))}
+            <div ref={logEndRef}/>
+          </div>
+        </div>
+      </div>
+    </div>}
+  </>;
+}
+
+// Expose PAL to React
+window.PAL=PAL;
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
 </body>
 </html>
