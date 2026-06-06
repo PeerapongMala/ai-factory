@@ -28,18 +28,42 @@ jobs:
           path: logs/processed_hashes.json
           key: processed-hashes
 
+      # พัฒนาการพนักงาน (level/xp) + บทเรียนสะสม — rolling key เพื่อให้ "อัปเดตได้จริง" ทุกรอบ
+      - name: Restore learning state from cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            logs/agent_stats.json
+            logs/agent_lessons.json
+          key: agent-learning-${{ github.run_id }}
+          restore-keys: |
+            agent-learning-
+
       - name: PM - Run Pipeline
         run: bun run scripts/pm.ts
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           CREATOMATE_API_KEY: ${{ secrets.CREATOMATE_API_KEY }}
           CREATOMATE_STATIC_TEMPLATE_ID: ${{ secrets.CREATOMATE_STATIC_TEMPLATE_ID }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           AYRSHARE_API_KEY: ${{ secrets.AYRSHARE_API_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
 
       - name: Save processed hashes to cache
         uses: actions/cache/save@v4
         with:
           path: logs/processed_hashes.json
           key: processed-hashes
+
+      # บันทึกพัฒนาการ + บทเรียนกลับเข้า cache (rolling key) → พนักงานเก่งขึ้นข้ามรอบ 24/7
+      - name: Save learning state to cache
+        if: always()
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            logs/agent_stats.json
+            logs/agent_lessons.json
+          key: agent-learning-${{ github.run_id }}

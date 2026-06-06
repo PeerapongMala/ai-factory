@@ -1,18 +1,13 @@
 import { readFileSync } from "fs";
 import { loadAgent, getMemoryPrompt } from "./agents/memory";
-import { generateWithRetry, type ProviderConfig } from "./ai/provider";
+import { generateWithRetry, buildProviderConfig, type ProviderConfig } from "./ai/provider";
 
 // 1. Load Agent Config (นักเขียน)
 const agent = loadAgent("writer.json");
 const memoryPrompt = getMemoryPrompt("writer.json");
 
-// 2. สร้าง provider config จาก agent JSON
-const providerConfig: ProviderConfig = {
-  provider: (agent as any).provider || "gemini",
-  model: agent.model || "gemini-2.0-flash",
-  apiKeyEnv: (agent as any).apiKeyEnv,
-  baseUrl: (agent as any).baseUrl,
-};
+// 2. สร้าง provider config จาก agent JSON (cloud โดยปริยาย; OpenClaw เมื่อ USE_OPENCLAW=1)
+const providerConfig: ProviderConfig = buildProviderConfig(agent, { provider: "gemini", model: "gemini-2.0-flash" });
 
 const systemPrompt = (agent.systemPrompt || "") + memoryPrompt;
 

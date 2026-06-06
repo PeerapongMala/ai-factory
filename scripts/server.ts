@@ -6,9 +6,10 @@
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { loadAgent, listAgents, listMemory, train, getMemoryPrompt } from "./agents/memory";
-import { generateWithRetry, type ProviderConfig } from "./ai/provider";
+import { generateWithRetry, buildProviderConfig, type ProviderConfig } from "./ai/provider";
+import { statsSummary } from "./agents/stats";
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 const ROOT = join(__dirname, "..");
 
 // MIME types
@@ -47,6 +48,8 @@ const AGENT_MAP: Record<string, string> = {
 
 const server = Bun.serve({
   port: PORT,
+  // กัน external API ช้า (เช่น Ayrshare ค้าง) ไม่ให้ตัด request ก่อน fetch จะ timeout เอง (6s)
+  idleTimeout: 30,
   async fetch(req) {
     const url = new URL(req.url);
     const path = url.pathname;
@@ -73,7 +76,8 @@ const server = Bun.serve({
       if (mistralKey) {
         try {
           const res = await fetch("https://api.mistral.ai/v1/models", {
-            headers: { "Authorization": `Bearer ${mistralKey}` }
+            headers: { "Authorization": `Bearer ${mistralKey}` },
+            signal: AbortSignal.timeout(6000),
           });
           tokens.push({
             name: "Mistral Large",
@@ -94,7 +98,8 @@ const server = Bun.serve({
       if (ayrKey) {
         try {
           const res = await fetch("https://app.ayrshare.com/api/user", {
-            headers: { "Authorization": `Bearer ${ayrKey}` }
+            headers: { "Authorization": `Bearer ${ayrKey}` },
+            signal: AbortSignal.timeout(6000),
           });
           const data = await res.json();
           const plan = data.subscription?.plan || "free";
@@ -160,12 +165,18 @@ const server = Bun.serve({
           name: agent.name,
           role: agent.role,
           description: agent.description,
-          provider: agent.provider || "gemini",
-          model: agent.model || "N/A",
+          // mechanical agents (reporter/graphic/publisher) ไม่ใช้ LLM → ไม่ปลอม provider/model
+          provider: agent.provider || null,
+          model: agent.model || null,
           memoryCount: agent.memory.length,
         };
       });
       return json(agents);
+    }
+
+    // GET /api/stats — พัฒนาการพนักงาน (level/xp/ความแม่นยำ/บทเรียน) จาก real management loop
+    if (path === "/api/stats") {
+      return json(statsSummary());
     }
 
     // GET /api/memory?agent=writer.json — ดู memory ของพนักงาน
@@ -212,12 +223,12 @@ const server = Bun.serve({
 
         const pmAgent = loadAgent("pm.json");
         const pmMemory = getMemoryPrompt("pm.json");
-        const pmConfig: ProviderConfig = {
-          provider: pmAgent.provider || "openai",
-          model: pmAgent.model || "mistral-large-latest",
-          apiKeyEnv: pmAgent.apiKeyEnv || "MISTRAL_API_KEY",
-          baseUrl: pmAgent.baseUrl || "https://api.mistral.ai/v1",
-        };
+        const pmConfig: ProviderConfig = buildProviderConfig(pmAgent, {
+          provider: "openai",
+          model: "mistral-large-latest",
+          apiKeyEnv: "MISTRAL_API_KEY",
+          baseUrl: "https://api.mistral.ai/v1",
+        });
 
         // รวม memory ของทุกคนให้ PM รู้
         let teamMemory = "";
@@ -242,6 +253,13 @@ const server = Bun.serve({
 
         const parsed = res.parsed || { action: "chat", reply: res.text };
 
+        // PM (Mistral) บางครั้งตอบด้วย schema ของ pipeline ({action:'alert'|'proceed'..., reason})
+        // แทน schema ของ chat ({action:'chat'|'train', reply}) → เติม reply ให้เสมอ
+        // กัน UI โชว์ "..." แล้วคำตอบจริงหาย
+        if (!parsed.reply) {
+          parsed.reply = parsed.reason || res.text || "(PM ไม่มีข้อความตอบ ลองพิมพ์ใหม่อีกครั้ง)";
+        }
+
         // ถ้า PM สั่งเทรน → ทำเลย
         if (parsed.action === "train" && parsed.trainTarget) {
           const targetFile = AGENT_MAP[parsed.trainTarget];
@@ -254,6 +272,27 @@ const server = Bun.serve({
         return json(parsed);
       } catch (e: any) {
         return json({ action: "error", reply: `Error: ${e.message}` });
+      }
+    }
+
+    // POST /api/chat/discord — ส่งข้อความถึง PM (OpenClaw) ผ่าน Discord (ทางเดียว → ตอบกลับใน Discord)
+    if (path === "/api/chat/discord" && req.method === "POST") {
+      try {
+        const { message } = await req.json();
+        if (!message) return json({ error: "ต้องส่ง message" }, 400);
+        const hook = process.env.DISCORD_WEBHOOK_URL;
+        if (!hook) return json({ error: "ยังไม่ได้ตั้ง DISCORD_WEBHOOK_URL" }, 400);
+        await fetch(hook, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: "แอดมิน → PM",
+            content: `📨 **แอดมินถาม PM (OpenClaw):**\n${String(message).slice(0, 1800)}`,
+          }),
+        });
+        return json({ ok: true });
+      } catch (e: any) {
+        return json({ error: e.message }, 500);
       }
     }
 
@@ -328,6 +367,14 @@ const server = Bun.serve({
       const status = existsSync(statusFile) ? readFileSync(statusFile, "utf8") : "idle";
       const log = existsSync(logFile) ? readFileSync(logFile, "utf8") : "";
       return json({ status, log });
+    }
+
+    // GET /api/team_chat — บทพูดจริงของพนักงานจากงานล่าสุด (เฟส 1)
+    if (path === "/api/team_chat") {
+      const { existsSync: ex, readFileSync: rf } = await import("fs");
+      const f = join(ROOT, "tmp", "team_chat.json");
+      if (!ex(f)) return json([]);
+      try { return json(JSON.parse(rf(f, "utf8"))); } catch { return json([]); }
     }
 
     // GET /api/postmode — ดูโหมดโพสต์

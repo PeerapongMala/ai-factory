@@ -20,10 +20,12 @@ export interface AIResponse {
 }
 
 export interface ProviderConfig {
-  provider: string;       // "gemini" | "openai" | "claude"
+  provider: string;       // "gemini" | "openai" | "claude" | "openclaw"
   model: string;
   apiKeyEnv?: string;     // env var name, default per provider
   baseUrl?: string;       // custom base URL (Groq, Ollama, etc.)
+  openclawAgent?: string; // openclaw: which OpenClaw agent id to run the turn
+  fallback?: ProviderConfig; // used when the primary provider is unavailable/fails
 }
 
 const DEFAULT_API_KEY_ENV: Record<string, string> = {
@@ -119,19 +121,115 @@ async function callClaude(config: ProviderConfig, req: AIRequest): Promise<AIRes
   return { text, parsed: tryParseJSON(text) };
 }
 
+// ===== OpenClaw (local gateway, per-agent Claude model via subscription) =====
+// หมายเหตุ: รันได้เฉพาะ "เครื่อง local" ที่ gateway openclaw เปิดอยู่ (localhost:18789)
+// GitHub Actions / cloud เรียกไม่ได้ → ต้องมี config.fallback เสมอ (gemini/mistral)
+// เปิดใช้ด้วย env USE_OPENCLAW=1 เท่านั้น (ดู buildProviderConfig)
+const OPENCLAW_TIMEOUT_S = Number(process.env.OPENCLAW_TIMEOUT_S) || 180;
+
+async function callOpenClaw(config: ProviderConfig, req: AIRequest): Promise<AIResponse> {
+  const agentId = config.openclawAgent || "main";
+  const sys = req.systemPrompt ? `[บทบาท/กฎ]\n${req.systemPrompt}\n\n` : "";
+  const jsonHint = req.jsonMode
+    ? "\n\nสำคัญ: ตอบกลับเป็น JSON object ที่ valid เท่านั้น ห้ามมีข้อความอื่นนอก JSON"
+    : "";
+  const message = `${sys}[งาน]\n${req.prompt}${jsonHint}`;
+  // session-key สดทุกครั้ง → เทิร์นแบบ stateless (ไม่ปนกับ session อื่นของ agent)
+  const sessionKey = `agent:${agentId}:pang-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const proc = Bun.spawn(
+    [
+      "openclaw", "agent",
+      "--agent", agentId,
+      "--model", config.model,
+      "--message", message,
+      "--session-key", sessionKey,
+      "--json",
+      "--timeout", String(OPENCLAW_TIMEOUT_S),
+    ],
+    { stdout: "pipe", stderr: "pipe" },
+  );
+
+  const stdout = await new Response(proc.stdout).text();
+  const exitCode = await proc.exited;
+  if (exitCode !== 0) {
+    const stderr = await new Response(proc.stderr).text();
+    throw new Error(`openclaw agent exited ${exitCode}: ${(stderr || stdout).slice(-280)}`);
+  }
+
+  const text = extractOpenClawReply(stdout);
+  if (!text) throw new Error("openclaw agent returned empty reply");
+  return { text, parsed: tryParseJSON(text) };
+}
+
+// --json envelope shape ของ openclaw อาจต่างเวอร์ชัน → ดึง field ที่น่าจะเป็นคำตอบแบบ defensive
+function extractOpenClawReply(raw: string): string {
+  const trimmed = raw.trim();
+  const envelope = tryParseJSON(trimmed);
+  if (envelope && typeof envelope === "object") {
+    const candidates = [
+      envelope.reply, envelope.text, envelope.message, envelope.content,
+      envelope.output, envelope.result?.text, envelope.result?.reply,
+      envelope.data?.text, envelope.response,
+    ];
+    for (const c of candidates) {
+      if (typeof c === "string" && c.trim()) return c.trim();
+    }
+  }
+  // ไม่ใช่ JSON envelope → คืน stdout ดิบ (อาจเป็นข้อความตรงๆ)
+  return trimmed;
+}
+
 // ===== Router =====
 const PROVIDERS: Record<string, (config: ProviderConfig, req: AIRequest) => Promise<AIResponse>> = {
   gemini: callGemini,
   openai: callOpenAI,
   claude: callClaude,
+  openclaw: callOpenClaw,
 };
+
+/**
+ * สร้าง ProviderConfig จาก agent JSON แบบรวมศูนย์
+ * - ค่าเริ่มต้น: ใช้ cloud provider (gemini/mistral) → ทำงานทั้ง local + GitHub Actions 24/7
+ * - ถ้า USE_OPENCLAW=1 และ agent มี block "openclaw" → route ไป OpenClaw (Claude ต่อ agent)
+ *   โดยตั้ง cloud เป็น fallback อัตโนมัติ (กัน cloud/gateway ล่ม)
+ */
+export function buildProviderConfig(agent: any, defaults?: Partial<ProviderConfig>): ProviderConfig {
+  const cloud: ProviderConfig = {
+    provider: agent.provider || defaults?.provider || "gemini",
+    model: agent.model || defaults?.model || "gemini-2.0-flash",
+    apiKeyEnv: agent.apiKeyEnv || defaults?.apiKeyEnv,
+    baseUrl: agent.baseUrl || defaults?.baseUrl,
+  };
+
+  const oc = agent.openclaw;
+  if (process.env.USE_OPENCLAW === "1" && oc?.agent && oc?.model) {
+    return {
+      provider: "openclaw",
+      model: oc.model,
+      openclawAgent: oc.agent,
+      fallback: cloud,
+    };
+  }
+  return cloud;
+}
 
 export async function generateContent(config: ProviderConfig, req: AIRequest): Promise<AIResponse> {
   const handler = PROVIDERS[config.provider];
   if (!handler) {
+    if (config.fallback) return generateContent(config.fallback, req);
     throw new Error(`Unknown AI provider: "${config.provider}". Available: ${Object.keys(PROVIDERS).join(", ")}`);
   }
-  return handler(config, req);
+  try {
+    return await handler(config, req);
+  } catch (err: any) {
+    // provider หลักล่ม (เช่น openclaw gateway ไม่เปิด / cloud rate-limit) → ใช้ fallback ถ้ามี
+    if (config.fallback) {
+      console.error(`[AI] provider "${config.provider}" failed: ${err?.message}. Falling back to "${config.fallback.provider}".`);
+      return generateContent(config.fallback, req);
+    }
+    throw err;
+  }
 }
 
 // ===== Retry wrapper =====

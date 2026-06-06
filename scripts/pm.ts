@@ -5,10 +5,44 @@
  */
 import { $ } from "bun";
 import { train, listMemory, listAgents, loadAgent, getMemoryPrompt } from "./agents/memory";
-import { generateWithRetry, type ProviderConfig } from "./ai/provider";
+import { generateWithRetry, buildProviderConfig, type ProviderConfig } from "./ai/provider";
+import { writeCaption, reviseCaption, guardianReview, pmVerdict, type Script, type NewsItem } from "./agents/brains";
+import { recordWork, recordMechanical } from "./agents/stats";
+import { addLesson } from "./agents/lessons";
+
+// จำนวนรอบแก้งานสูงสุดต่อ 1 โพสต์ (real management loop)
+const MAX_REVISE = Number(process.env.MAX_REVISE) || 2;
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+// Discord webhook — ให้ OpenClaw bot (และมือถือ) เห็นรายงานทุก run แบบ 24/7 (GitHub Actions ยิงเอง ไม่ต้องเปิดเครื่อง)
+const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
+
+// แปลง HTML (ของ Telegram) → Discord markdown
+function toDiscordMarkdown(html: string): string {
+  return html
+    .replace(/<b>(.*?)<\/b>/gs, "**$1**")
+    .replace(/<i>(.*?)<\/i>/gs, "*$1*")
+    .replace(/<code>(.*?)<\/code>/gs, "`$1`")
+    .replace(/<[^>]+>/g, "")
+    .trim();
+}
+
+async function sendDiscord(message: string) {
+  if (!DISCORD_WEBHOOK_URL) return;
+  try {
+    await fetch(DISCORD_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "PM · Pang News",
+        content: toDiscordMarkdown(message).slice(0, 1900), // Discord จำกัด 2000 ตัวอักษร
+      }),
+    });
+  } catch {
+    log("PM", "ส่ง Discord ไม่ได้ ข้ามไป");
+  }
+}
 
 // โหมดโพสต์: "auto" = โพสต์เลย, "approve" = ส่งตรวจก่อน
 function getPostMode(): "auto" | "approve" {
@@ -30,31 +64,61 @@ function log(role: string, msg: string) {
 
 // PM ส่งสรุปรายงานทาง Telegram
 async function pmReport(message: string) {
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
-  try {
-    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: TELEGRAM_CHAT_ID,
-        text: message,
-        parse_mode: "HTML"
-      })
-    });
-  } catch (e) {
-    log("PM", "ส่ง Telegram ไม่ได้ ข้ามไป");
+  // Telegram (ถ้าตั้งค่าไว้)
+  if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
+    try {
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: TELEGRAM_CHAT_ID,
+          text: message,
+          parse_mode: "HTML"
+        })
+      });
+    } catch (e) {
+      log("PM", "ส่ง Telegram ไม่ได้ ข้ามไป");
+    }
   }
+  // Discord — ให้ OpenClaw bot + มือถือเห็นทุกรายงาน (ทำงาน 24/7 ผ่าน GitHub Actions)
+  await sendDiscord(message);
+}
+
+// === บทพูดจริงของพนักงาน (เฟส 1) — เขียนสิ่งที่ทำจริงลงไฟล์ให้ dashboard อ่าน + ส่ง Discord ===
+function teamSay(id: string, name: string, text: string) {
+  try {
+    const { readFileSync, writeFileSync, mkdirSync } = require("fs");
+    const { join } = require("path");
+    const dir = join(__dirname, "../tmp");
+    mkdirSync(dir, { recursive: true });
+    const f = join(dir, "team_chat.json");
+    let arr: any[] = [];
+    try { arr = JSON.parse(readFileSync(f, "utf8")); } catch {}
+    arr.push({ id, name, text: String(text).slice(0, 140), t: new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }) });
+    writeFileSync(f, JSON.stringify(arr.slice(-60), null, 2));
+  } catch {}
+  sendDiscord(`💬 **${name}:** ${text}`);
+  log(name, `(พูด) ${text}`);
+}
+
+function clearTeamChat() {
+  try {
+    const { writeFileSync, mkdirSync } = require("fs");
+    const { join } = require("path");
+    mkdirSync(join(__dirname, "../tmp"), { recursive: true });
+    writeFileSync(join(__dirname, "../tmp/team_chat.json"), "[]");
+  } catch {}
 }
 
 // PM Brain — ถาม Mistral ให้ตัดสินใจ
 const pmAgent = loadAgent("pm.json");
 const pmMemory = getMemoryPrompt("pm.json");
-const pmProviderConfig: ProviderConfig = {
-  provider: pmAgent.provider || "openai",
-  model: pmAgent.model || "mistral-large-latest",
-  apiKeyEnv: pmAgent.apiKeyEnv || "MISTRAL_API_KEY",
-  baseUrl: pmAgent.baseUrl || "https://api.mistral.ai/v1",
-};
+const pmProviderConfig: ProviderConfig = buildProviderConfig(pmAgent, {
+  provider: "openai",
+  model: "mistral-large-latest",
+  apiKeyEnv: "MISTRAL_API_KEY",
+  baseUrl: "https://api.mistral.ai/v1",
+});
 const pmSystemPrompt = (pmAgent.systemPrompt || "") + pmMemory;
 
 interface PMDecision {
@@ -143,9 +207,12 @@ async function assignWithRetry(role: string, command: string, inputFile: string 
 
 // ===== PM เริ่มทำงาน (AI Brain) =====
 async function pmRun() {
-  log("PM", "=== เริ่มประชุมเช้า (AI Brain: Mistral) ===");
+  log("PM", "=== เริ่มประชุมเช้า (Real Management Loop) ===");
+  clearTeamChat();
+  teamSay("pm", "PM", "เริ่มประชุมเช้า สั่งทีมหาข่าวรอบใหม่กันเลย");
+  teamSay("reporter", "นักข่าว", "รับทราบ ออกไปสแกนข่าวจากหลายสำนัก...");
 
-  // 1. สั่ง นักข่าว ไปหาข่าว
+  // 1. นักข่าว หาข่าว (mechanical)
   const news = await assignWork("นักข่าว", "scripts/fetch_news.ts");
   if (!news.success) {
     const decision = await pmThink(
@@ -158,76 +225,127 @@ async function pmRun() {
     return;
   }
 
-  const newsCount = news.data.data?.length || 0;
+  const newsItems: NewsItem[] = news.data.data || [];
+  recordMechanical("reporter.json");
+  const newsCount = newsItems.length;
   log("PM", `นักข่าวหาข่าวได้ ${newsCount} ข่าว`);
+  const newsTitles = newsItems.map((n) => n.title).slice(0, 2).join(" / ") || "(ไม่มีหัวข้อ)";
+  teamSay("reporter", "นักข่าว", `เจอข่าวน่าทำ ${newsCount} ข่าว: ${newsTitles}`);
 
-  const step1File = "/tmp/pm_step1.json";
-  await Bun.write(step1File, news.output);
+  // 2. Real Management Loop — วนทีละข่าว: เขียน → ตรวจ → PM ตัดสิน → แก้ → เทรน → อนุมัติ
+  const approvedItems: any[] = [];
+  let totalRetries = 0;
+  let totalLessons = 0;
 
-  // 2. สั่ง นักเขียน เขียน content
-  const content = await assignWithRetry("นักเขียน", "scripts/process_content.ts", step1File, 3);
-  if (!content.success) {
-    const decision = await pmThink(
-      `นักเขียนทำงานไม่สำเร็จ\nError: ${content.data?.error || "unknown"}\nPM ควรทำอะไร?`
-    );
-    log("PM", `AI ตัดสินใจ: ${decision.action} — ${decision.reason}`);
-    await pmReport(`⚠️ <b>PM AI</b>\n\nนักเขียนพัง\nPM คิด: ${decision.reason}\nเวลา: ${ts()}`);
-    return;
-  }
+  for (const newsItem of newsItems) {
+    teamSay("writer", "นักเขียน", `รับงานข่าว "${String(newsItem.title || "").slice(0, 36)}" ขอเขียนร่างแรกก่อน...`);
 
-  const step2File = "/tmp/pm_step2.json";
-  await Bun.write(step2File, content.output);
+    let script: Script;
+    try {
+      script = await writeCaption(newsItem);
+    } catch (e: any) {
+      log("นักเขียน", `เขียนไม่ได้: ${e.message}`);
+      teamSay("writer", "นักเขียน", "เขียนข่าวนี้ไม่ได้ ขอข้ามไปก่อน");
+      recordWork("writer.json", { passed: false });
+      continue;
+    }
+    teamSay("writer", "นักเขียน", `ร่างแรกเสร็จ: ${script.headline}`);
 
-  // 3. PM ตรวจ content ด้วย AI — เช็คคุณภาพตาม feedback ที่เคยได้
-  // สร้าง preview ที่อ่านง่ายสำหรับ PM (ไม่ใช่ raw JSON)
-  const contentData = JSON.parse(content.output);
-  const contentItems = contentData.data || [];
-  let contentPreview = "";
-  for (let i = 0; i < contentItems.length; i++) {
-    const item = contentItems[i];
-    const sc = item.generated_script || {};
-    const src = item.source_article || {};
-    const captionText = typeof sc.caption === "string" ? sc.caption : JSON.stringify(sc.caption || "");
-    contentPreview += `\n--- โพสต์ที่ ${i + 1} ---`;
-    contentPreview += `\nหัวข้อ: ${sc.headline || src.title || "N/A"}`;
-    contentPreview += `\nอารมณ์: ${sc.mood || "N/A"}`;
-    contentPreview += `\nแหล่งข่าว: ${src.source || "N/A"} (${src.link || "N/A"})`;
-    contentPreview += `\nมีรูป: ${src.image ? "มี" : "ไม่มี"}`;
-    contentPreview += `\nCaption:\n${captionText.slice(0, 500)}`;
-    contentPreview += "\n";
-  }
+    let attempt = 0;
+    let approved = false;
+    let gainedLesson = false;
+    let lastIssues: string[] = [];
 
-  const reviewDecision = await pmThink(
-    `นักเขียนส่ง content มาแล้ว ${contentItems.length} โพสต์ ช่วยตรวจดูหน่อย:\n${contentPreview}\n\nเช็คว่า:\n- caption อ่านง่ายมั้ย ภาษาไทยถูกต้องมั้ย\n- มี emoji มั้ย (ห้ามใส่ emoji)\n- หัวข้อกับเนื้อหาตรงกันมั้ย\n- ตรงตาม feedback ที่เคยได้มั้ย (ดู memory)\n- ควร proceed โพสต์เลย หรือ train นักเขียนเพิ่ม?\n\nถ้า action=train ต้องส่ง trainTarget (เช่น "นักเขียน") และ trainFeedback (คำสั่งที่จะสอน) ด้วย`
-  );
-  log("PM", `AI ตรวจ content: ${reviewDecision.action} — ${reviewDecision.reason}`);
+    while (true) {
+      teamSay("guardian", "ตรวจสอบ", "ขอตรวจคุณภาพ caption ก่อนนะ...");
+      const review = await guardianReview(newsItem, script);
+      lastIssues = review.issues;
 
-  if (reviewDecision.action === "train") {
-    const AGENT_MAP: Record<string, string> = {
-      "นักเขียน": "writer.json", "นักข่าว": "reporter.json",
-      "กราฟิก": "graphic.json", "โพสต์": "publisher.json",
-    };
-    const target = reviewDecision.trainTarget || "นักเขียน";
-    const feedback = reviewDecision.trainFeedback || reviewDecision.reason;
-    const targetFile = AGENT_MAP[target];
-    if (targetFile && feedback) {
-      train(targetFile, feedback, "PM (AI)");
-      log("PM", `เทรน ${target}: "${feedback}"`);
+      if (review.pass) {
+        teamSay("guardian", "ตรวจสอบ", `ผ่าน! (คะแนน ${review.score}) ส่งต่อได้เลย`);
+        approved = true;
+        break;
+      }
+
+      const issueText = review.issues.slice(0, 3).join(" | ") || review.note || "คุณภาพยังไม่ถึงเกณฑ์";
+      teamSay("guardian", "ตรวจสอบ", `ยังไม่ผ่าน (${review.score}): ${issueText.slice(0, 90)}`);
+
+      const verdict = await pmVerdict({ news: newsItem, script, review, attempt: attempt + 1, maxAttempts: MAX_REVISE });
+      log("PM", `ตัดสิน: ${verdict.action} — ${verdict.reason}`);
+
+      if (verdict.action === "approve") {
+        teamSay("pm", "PM", `โอเค รับได้ ${verdict.reason || ""}`.trim());
+        approved = true;
+        break;
+      }
+      if (verdict.action === "skip") {
+        teamSay("pm", "PM", `ข่าวนี้ขอข้าม: ${verdict.reason || "คุณภาพไม่พอ"}`);
+        approved = false;
+        break;
+      }
+
+      // revise/train — ถ้าครบรอบแล้ว → เทรนถาวร + ใช้ตัวที่ดีที่สุด (ไม่ทิ้งข่าว)
+      if (attempt >= MAX_REVISE) {
+        const lesson = verdict.feedback || issueText;
+        train("writer.json", lesson, "PM (AI)");
+        addLesson("writer.json", lesson, "PM (AI)");
+        gainedLesson = true;
+        teamSay("pm", "PM", "แก้หลายรอบแล้ว บันทึกบทเรียนให้นักเขียน คราวหน้าจะเก่งขึ้น");
+        approved = true;
+        break;
+      }
+
+      const fb = verdict.feedback || issueText;
+      teamSay("pm", "PM", `นักเขียนช่วยแก้ให้หน่อย: ${fb.slice(0, 80)}`);
+      teamSay("writer", "นักเขียน", "รับทราบ ขอแก้ใหม่ตามที่พี่บอก...");
+      try {
+        script = await reviseCaption(newsItem, script, fb);
+      } catch (e: any) {
+        log("นักเขียน", `แก้ไม่ได้: ${e.message}`);
+        break;
+      }
+      teamSay("writer", "นักเขียน", `แก้แล้วครับ: ${script.headline}`);
+      attempt++;
+    }
+
+    // เทรนเมื่อแก้ผ่าน (ได้บทเรียน) — ทำให้รอบหน้าผ่านเร็วขึ้น
+    if (approved && attempt > 0 && !gainedLesson) {
+      const lesson = lastIssues[0] || "ปรับ caption ให้ผ่านเกณฑ์ตั้งแต่ร่างแรก";
+      train("writer.json", lesson, "PM (AI)");
+      addLesson("writer.json", lesson, "PM (AI)");
+      gainedLesson = true;
+    }
+    if (gainedLesson) totalLessons++;
+    totalRetries += attempt;
+    recordWork("writer.json", { passed: approved, firstPass: approved && attempt === 0, retries: attempt, gainedLesson });
+    recordMechanical("guardian.json");
+
+    if (approved) {
+      approvedItems.push({
+        source_article: newsItem,
+        generated_script: { mood: script.mood, headline: script.headline, caption: script.caption },
+      });
     }
   }
 
-  if (reviewDecision.action === "skip") {
-    log("PM", "AI ตัดสินใจ skip content นี้");
-    await pmReport(`⚠️ <b>PM AI</b>\n\nContent ไม่ผ่าน\nPM คิด: ${reviewDecision.reason}\nเวลา: ${ts()}`);
+  if (approvedItems.length === 0) {
+    teamSay("pm", "PM", "รอบนี้ยังไม่มีโพสต์ผ่านเกณฑ์ ขอข้ามไปก่อน");
+    log("PM", "ไม่มี content ผ่าน — ปิดประชุม");
+    await pmReport(`⚠️ <b>PM AI</b>\n\nรอบนี้ไม่มี content ผ่านเกณฑ์ (แก้ ${totalRetries} รอบ)\nเวลา: ${ts()}`);
     return;
   }
 
-  // 4. Guardian check
-  log("ตรวจสอบ", "hash ไม่ซ้ำ + ข่าวไม่เกิน 24 ชม. ผ่าน");
+  const reviewNote = totalRetries > 0
+    ? `แก้ ${totalRetries} รอบ, เรียนรู้ ${totalLessons} บทเรียน, ผ่าน ${approvedItems.length} โพสต์`
+    : `ผ่านฉลุยทุกโพสต์ตั้งแต่ร่างแรก (${approvedItems.length} โพสต์)`;
+  teamSay("pm", "PM", `สรุป: ${reviewNote}`);
+  teamSay("graphic", "กราฟิก", "แปะสติกเกอร์น้องปัง + headline ลงรูปให้สวยๆ");
 
-  // 5. กราฟิก — stamp_sticker ทำใน social_post.ts แล้ว (แปะสติกเกอร์ + headline + upload)
-  log("กราฟิก", "stamp sticker จะทำใน social_post (แปะน้องปัง + headline ลงรูป)")
-  let postInputFile = step2File;
+  // contentData = ผลงานที่ผ่านการตรวจ (shape เดียวกับที่ downstream ต้องการ)
+  const contentData: any = { status: "SUCCESS", role: "PM-loop", data: approvedItems, timestamp: new Date().toISOString() };
+  const step2File = "/tmp/pm_step2.json";
+  await Bun.write(step2File, JSON.stringify(contentData));
+  const postInputFile = step2File;
 
   const mode = getPostMode();
   log("PM", `โหมดโพสต์: ${mode === "auto" ? "โพสต์เลย" : "ถามก่อน"}`);
@@ -240,7 +358,6 @@ async function pmRun() {
 
     // แปะสติกเกอร์ + upload ให้ preview ดูเหมือนโพสต์จริง + เพิ่ม CTA ถ้าไม่มี
     const CTA_TEXT = "ติดตามเพจใหม่เพื่อรับข่าวสารเพิ่มเติมได้ที่นี่ เกมปังv2";
-    const contentData = JSON.parse(content.output);
     const items = contentData.data || [];
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -296,6 +413,8 @@ async function pmRun() {
       }
     }
 
+    recordMechanical("graphic.json"); // กราฟิกทำงานจริง (แปะสติกเกอร์ + upload)
+
     const pendingDir = join(__dirname, "../tmp/pending");
     mkdirSync(pendingDir, { recursive: true });
     const pendingId = Date.now().toString() + Math.random().toString(36).slice(2, 6);
@@ -332,11 +451,16 @@ async function pmRun() {
     return;
   }
 
+  recordMechanical("graphic.json");
+  recordMechanical("publisher.json");
+  teamSay("publisher", "โพสต์", "โพสต์ลงเพจ FB + IG เรียบร้อยแล้ว!");
+  teamSay("pm", "PM", "งานดีมากทีม รอบนี้เสร็จเรียบร้อย รอฟังถ้าแอดมินอยากปรับอะไร");
+
   // 7. PM สรุปงาน
   log("PM", "=== งานเสร็จทั้งหมด ปิดประชุม ===");
 
-  const titles = news.data.data?.map((n: any) => n.title).join("\n• ") || "N/A";
-  await pmReport(`✅ <b>PM AI Report</b>\n\n📰 ข่าวที่โพสต์:\n• ${titles}\n\n🧠 PM Review: ${reviewDecision.reason}\n📱 Platforms: Facebook + Instagram\n🕐 เวลา: ${ts()}`);
+  const titles = approvedItems.map((it: any) => it.generated_script?.headline || it.source_article?.title).join("\n• ") || "N/A";
+  await pmReport(`✅ <b>PM AI Report</b>\n\n📰 ข่าวที่โพสต์:\n• ${titles}\n\n🧠 ทีมงาน: ${reviewNote}\n📱 Platforms: Facebook + Instagram\n🕐 เวลา: ${ts()}`);
 }
 
 // ===== PM เทรนพนักงาน =====
