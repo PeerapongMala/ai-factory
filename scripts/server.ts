@@ -3,7 +3,7 @@
  * เสิร์ฟ index.html + API สั่งงาน PM
  * รัน: bun run scripts/server.ts
  */
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, statSync } from "fs";
 import { join } from "path";
 import { loadAgent, listAgents, listMemory, train, getMemoryPrompt } from "./agents/memory";
 import { generateWithRetry, buildProviderConfig, type ProviderConfig } from "./ai/provider";
@@ -28,6 +28,19 @@ const MIME: Record<string, string> = {
 function getMime(path: string): string {
   const ext = path.slice(path.lastIndexOf("."));
   return MIME[ext] || "application/octet-stream";
+}
+
+// Transpile .jsx on the fly so the dashboard drops the ~3MB babel-standalone CDN
+// + in-browser compile. classic runtime → React.createElement on the global React/ReactDOM.
+const jsxTranspiler = new Bun.Transpiler({ loader: "jsx", tsconfig: JSON.stringify({ compilerOptions: { jsx: "react" } }) });
+const jsxCache = new Map<string, { mtime: number; code: string }>();
+function transpileJsx(fullPath: string): string {
+  const mtime = statSync(fullPath).mtimeMs;
+  const hit = jsxCache.get(fullPath);
+  if (hit && hit.mtime === mtime) return hit.code;
+  const code = jsxTranspiler.transformSync(readFileSync(fullPath, "utf8"));
+  jsxCache.set(fullPath, { mtime, code });
+  return code;
 }
 
 function json(data: any, status = 200) {
@@ -575,6 +588,11 @@ const server = Bun.serve({
     const fullPath = existsSync(webPath) ? webPath : join(ROOT, filePath);
 
     if (existsSync(fullPath)) {
+      if (fullPath.endsWith(".jsx")) {
+        return new Response(transpileJsx(fullPath), {
+          headers: { "Content-Type": "application/javascript" },
+        });
+      }
       const file = readFileSync(fullPath);
       return new Response(file, {
         headers: { "Content-Type": getMime(fullPath) },
