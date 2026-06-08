@@ -16,6 +16,7 @@ const ROOT = join(__dirname, "..");
 const MIME: Record<string, string> = {
   ".html": "text/html",
   ".js": "application/javascript",
+  ".jsx": "application/javascript",
   ".css": "text/css",
   ".json": "application/json",
   ".png": "image/png",
@@ -568,8 +569,10 @@ const server = Bun.serve({
     }
 
     // === Static Files ===
-    let filePath = path === "/" ? "/index.html" : path;
-    const fullPath = join(ROOT, filePath);
+    // FE อยู่ใน web/ (index.html, css/, js/) — assets ที่ใช้ร่วมกับ backend (sprites, stickers, fonts) อยู่ที่ root
+    const filePath = path === "/" ? "/index.html" : path;
+    const webPath = join(ROOT, "web", filePath);
+    const fullPath = existsSync(webPath) ? webPath : join(ROOT, filePath);
 
     if (existsSync(fullPath)) {
       const file = readFileSync(fullPath);

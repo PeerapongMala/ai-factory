@@ -173,10 +173,16 @@ ai-content-factory/
 │   └── post_dept/
 │       ├── render_static.ts  # กราฟิก
 │       └── social_post.ts    # โพสต์
+├── web/                   # Frontend (Dashboard Pixel Office)
+│   ├── index.html         # shell — โหลด css/js + CDN react/babel
+│   ├── css/dashboard.css  # สไตล์ทั้งหมด
+│   └── js/
+│       ├── office-engine.js  # canvas pixel office (วาดห้อง/ตัวละคร)
+│       └── dashboard.jsx     # React app (panels, API) — babel in-browser
 ├── logs/
 │   └── processed_hashes.json # กัน hash ข่าวซ้ำ
-├── assets/                # sticker น้องปัง
-├── index.html             # Dashboard Pixel Office
+├── assets/                # sticker น้องปัง + sprites พนักงาน
+├── docs/                  # เอกสาร product/plan/qa
 └── .github/workflows/     # GitHub Actions cron
 ```
 
