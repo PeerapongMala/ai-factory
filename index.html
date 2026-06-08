@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PANG NEWS COMPANY — News Factory Tycoon</title>
+<title>PANG NEWS CO. — Virtual Office</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='14' font-size='14'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -11,189 +11,272 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
 :root{
-  /* motion */
   --ease-out-expo:cubic-bezier(0.16,1,0.3,1);
   --ease-out-quart:cubic-bezier(0.25,1,0.5,1);
   --dur-fast:140ms;--dur-normal:220ms;--dur-slow:320ms;
-  /* z-index scale */
   --z-bars:10;--z-overlay:50;--z-panel:51;--z-notif:100;
-  /* ink + wood palette */
-  --ink:#f5edd6;--ink-dim:#d8c7a0;--muted:#bda884;
-  --wood-1:#5d4037;--wood-2:#4e342e;--wood-3:#3e2723;--wood-edge:#8d6e63;--well:#2e1a0e;
-  --gold:#ffd54f;--gold-deep:#f9a825;
-  --good:#66bb6a;--warn:#ffa726;--bad:#ef5350;
+  /* dark navy "control room" chrome (like WORK360) */
+  --bg:#0a0e1a;--panel:#121a2e;--panel-2:#0d1422;--panel-3:#0a1120;
+  --line:#243150;--line-soft:#1a2540;
+  --ink:#eaf0fb;--ink-dim:#c3cfe6;--muted:#8195b8;
+  --cyan:#4fd3ff;--gold:#ffd54f;--good:#3ddc84;--bad:#ff6b6b;--warn:#ffb454;
+  /* role accents */
+  --c-pm:#ff5a52;--c-reporter:#3aa0ff;--c-writer:#46c46a;--c-guardian:#b06cff;--c-graphic:#ff9838;--c-publisher:#ffd23f;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#1a1a2e;overflow:hidden;font-family:'DotGothic16',monospace;color:var(--ink);width:100vw;height:100vh}
-canvas#office{position:absolute;top:0;left:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges}
-#ui{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;display:flex;flex-direction:column}
+body{background:var(--bg);overflow:hidden;font-family:'DotGothic16',monospace;color:var(--ink);width:100vw;height:100vh}
+canvas#office{position:fixed;top:0;left:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;z-index:0}
+#ui{position:fixed;inset:0;pointer-events:none;z-index:1}
 #ui>*{pointer-events:auto}
-.pixel-font{font-family:'Press Start 2P',monospace}
-.top-bar{background:linear-gradient(180deg,#3e2723 0%,#4e342e 100%);border-bottom:4px solid #8d6e63;padding:8px 16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;z-index:10}
-.top-bar .title{font-family:'Press Start 2P',monospace;font-size:14px;color:#ffd54f;text-shadow:2px 2px 0 #5d4037}
-.top-bar .stat{background:#2e1a0e;border:2px solid #6d4c41;border-radius:4px;padding:4px 10px;font-size:11px;display:flex;align-items:center;gap:6px}
-.top-bar .stat .label{color:#a1887f;font-size:9px}
-.top-bar .stat .val{color:#ffd54f;font-family:'Press Start 2P',monospace;font-size:10px}
-.bottom-bar{margin-top:auto;background:linear-gradient(0deg,#3e2723 0%,#4e342e 100%);border-top:4px solid #8d6e63;padding:8px 12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;z-index:10}
-.btn-game{font-family:'Press Start 2P',monospace;font-size:9px;padding:8px 14px;border:3px solid;border-radius:4px;cursor:pointer;transition:transform var(--dur-fast) var(--ease-out-quart),filter var(--dur-fast),box-shadow var(--dur-fast);text-transform:uppercase;background:#2e1a0e}
+.pixel{font-family:'Press Start 2P',monospace}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+/* ===================== TOP BAR ===================== */
+.top-bar{position:fixed;top:0;left:0;right:0;height:60px;z-index:var(--z-bars);
+  background:linear-gradient(180deg,#101a30 0%,#0b1322 100%);border-bottom:2px solid var(--line);
+  display:flex;align-items:center;gap:14px;padding:0 16px;box-shadow:0 4px 18px rgba(0,0,0,.5)}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand .logo{width:34px;height:34px;border-radius:7px;background:linear-gradient(135deg,#1d2c4d,#0e1830);
+  border:2px solid var(--cyan);display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 0 12px #4fd3ff44}
+.brand .bt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.brand .bt .n{font-family:'Press Start 2P',monospace;font-size:11px;color:#fff;text-shadow:0 0 8px #4fd3ff66;white-space:nowrap}
+.brand .bt .s{font-size:10px;color:var(--cyan)}
+.tb-spacer{flex:1}
+.tb-pill{display:flex;align-items:center;gap:7px;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:20px;padding:5px 12px;font-size:11px;color:var(--ink-dim);white-space:nowrap}
+.tb-pill .led{width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 8px var(--good);animation:pulseLed 2s infinite}
+@keyframes pulseLed{0%,100%{opacity:1}50%{opacity:.4}}
+.tb-clock{text-align:right;line-height:1.25}
+.tb-clock .d{font-size:10px;color:var(--muted)}
+.tb-clock .t{font-family:'Press Start 2P',monospace;font-size:12px;color:var(--gold)}
+.tb-bell{position:relative;width:38px;height:38px;border-radius:9px;background:var(--panel-2);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;transition:all var(--dur-fast)}
+.tb-bell:hover{border-color:var(--gold);transform:translateY(-1px)}
+.tb-bell .badge{position:absolute;top:-6px;right:-6px;background:var(--bad);color:#fff;border-radius:9px;
+  min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;font-family:'Press Start 2P',monospace;padding:0 4px}
+
+/* ===================== LEFT SIDEBAR ===================== */
+.sidebar-l{position:fixed;left:0;top:60px;bottom:0;width:210px;z-index:var(--z-bars);
+  background:linear-gradient(180deg,#0e1626 0%,#0a0f1c 100%);border-right:2px solid var(--line);
+  display:flex;flex-direction:column;padding:12px 10px;gap:6px;overflow-y:auto}
+.nav-group-label{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--muted);padding:4px 6px 2px;letter-spacing:.5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;
+  border:1px solid transparent;background:transparent;color:var(--ink-dim);font-family:inherit;font-size:13px;
+  width:100%;text-align:left;transition:all var(--dur-fast) var(--ease-out-quart);position:relative}
+.nav-item:hover{background:var(--panel);border-color:var(--line)}
+.nav-item.active{background:linear-gradient(90deg,#16335a,#102544);border-color:var(--cyan);color:#fff;box-shadow:inset 3px 0 0 var(--cyan)}
+.nav-item:disabled{opacity:.55;cursor:not-allowed}
+.nav-item .ic{width:20px;text-align:center;font-size:15px}
+.nav-item .nb{margin-left:auto;background:var(--bad);color:#fff;border-radius:8px;font-size:9px;
+  font-family:'Press Start 2P',monospace;padding:2px 6px;min-width:18px;text-align:center}
+.nav-item.run{border-color:#1f5e3a;background:#10331f;color:#7be6a0}
+.nav-item.run:hover:not(:disabled){background:#164a2a;border-color:var(--good)}
+.spacer-grow{flex:1;min-height:8px}
+.office-status{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px;margin-top:6px}
+.office-status .h{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--cyan);margin-bottom:9px;letter-spacing:.5px}
+.os-row{display:flex;align-items:center;justify-content:space-between;font-size:11px;padding:4px 0;color:var(--muted)}
+.os-row b{color:var(--ink);font-size:11px}
+.os-row .ok{color:var(--good);font-family:'Press Start 2P',monospace;font-size:8px}
+.mode-toggle{margin-top:8px;width:100%;display:flex;align-items:center;justify-content:center;gap:7px;
+  padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);color:var(--gold);
+  font-family:'Press Start 2P',monospace;font-size:8px;cursor:pointer;transition:all var(--dur-fast)}
+.mode-toggle:hover{border-color:var(--gold);background:#1a1a0e}
+
+/* ===================== RIGHT SIDEBAR (directory) ===================== */
+.sidebar-r{position:fixed;right:0;top:60px;bottom:0;width:248px;z-index:var(--z-bars);
+  background:linear-gradient(180deg,#0e1626 0%,#0a0f1c 100%);border-left:2px solid var(--line);
+  display:flex;flex-direction:column;overflow:hidden}
+.dir-head{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--cyan);padding:13px 14px 10px;
+  display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+.dir-head .c{color:var(--muted);font-size:8px}
+.dir-list{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:5px}
+.dir-row{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:8px;background:var(--panel-2);
+  border:1px solid var(--line-soft);cursor:pointer;transition:all var(--dur-fast) var(--ease-out-quart);
+  width:100%;text-align:left;font-family:inherit;color:var(--ink)}
+.dir-row:hover{border-color:var(--gold);transform:translateX(-3px)}
+.dir-num{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--muted);width:14px;text-align:center;flex:0 0 auto}
+.dir-av{width:30px;height:30px;border-radius:7px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+  font-size:15px;border:2px solid;background:#0c1322}
+.dir-meta{flex:1;min-width:0}
+.dir-name{font-family:'Press Start 2P',monospace;font-size:8px;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dir-role{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dir-lv{font-size:9px;color:var(--gold);margin-left:4px}
+.dir-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.dir-dot.on{background:var(--good);box-shadow:0 0 7px var(--good)}
+.dir-dot.busy{background:var(--cyan);box-shadow:0 0 7px var(--cyan)}
+.dir-dot.idle{background:var(--warn)}
+.dir-foot{border-top:1px solid var(--line);padding:10px 12px;background:var(--panel-3)}
+.dir-foot .all{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--good);margin-bottom:9px}
+.sys-row{display:flex;align-items:center;gap:7px;font-size:10px;color:var(--muted);padding:3px 0}
+.sys-row .ck{color:var(--good);font-size:11px}
+
+/* ===================== BOTTOM BAR (stat cards) ===================== */
+.bottom-bar{position:fixed;left:210px;right:248px;bottom:0;height:104px;z-index:var(--z-bars);
+  background:linear-gradient(0deg,#0b1322 0%,#0e1828 100%);border-top:2px solid var(--line);
+  display:flex;align-items:center;gap:10px;padding:0 16px;overflow-x:auto}
+.stat-tile{flex:0 0 auto;min-width:118px;background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  padding:11px 14px;display:flex;flex-direction:column;gap:4px;position:relative;overflow:hidden;
+  font-family:inherit;text-align:left;cursor:pointer;transition:transform var(--dur-fast) var(--ease-out-quart),border-color var(--dur-fast)}
+.stat-tile:hover{transform:translateY(-2px);border-color:var(--accent,#4fd3ff)}
+.stat-tile::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent,#4fd3ff)}
+.stat-tile .big{font-family:'Press Start 2P',monospace;font-size:18px;color:var(--accent,#fff)}
+.stat-tile .lb{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.stat-tile .ic2{position:absolute;right:10px;top:9px;font-size:18px;opacity:.5}
+.automation{flex:1 0 auto;min-width:210px;margin-left:auto;background:linear-gradient(110deg,#10325a,#0c1d38);
+  border:1px solid var(--cyan);border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:14px;
+  box-shadow:inset 0 0 22px #4fd3ff1a;font-family:inherit;text-align:left;cursor:pointer;transition:transform var(--dur-fast) var(--ease-out-quart),filter var(--dur-fast)}
+.automation:hover:not(:disabled){transform:translateY(-2px);filter:brightness(1.12)}
+.automation:disabled{cursor:default}
+.emp-card{cursor:pointer}.emp-card:hover{border-color:var(--gold)}
+.automation .bot{font-size:30px;filter:drop-shadow(0 0 8px #4fd3ff66)}
+.automation .at{flex:1}
+.automation .at .t{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--cyan);margin-bottom:5px}
+.automation .at .s{font-size:11px;color:var(--ink-dim)}
+
+/* pipeline strip overlays bottom bar when running */
+.pipeline{position:fixed;left:210px;right:248px;bottom:104px;z-index:var(--z-bars);
+  background:linear-gradient(0deg,#0a1120 0%,#0e1828 100%);border-top:1px solid var(--line);
+  padding:6px 14px;display:flex;align-items:center;gap:5px;justify-content:center;flex-wrap:wrap}
+.pipeline .plabel{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--muted);margin-right:6px}
+.pstep{display:flex;align-items:center;gap:6px}
+.pstep .chip{display:flex;align-items:center;gap:5px;padding:4px 9px;border-radius:6px;
+  border:1px solid var(--line);background:var(--panel-2);font-size:11px;color:var(--muted);transition:all var(--dur-normal) var(--ease-out-quart)}
+.pstep .chip .n{font-family:'Press Start 2P',monospace;font-size:8px}
+.pstep.done .chip{border-color:#235c3a;color:var(--good);background:#10331f}
+.pstep.active .chip{border-color:var(--gold);color:var(--gold);background:#1d1a0a;box-shadow:0 0 0 2px #ffd54f33;transform:translateY(-2px)}
+.pstep .arrow{color:var(--line);font-size:12px}
+.pstep.done .arrow{color:#235c3a}
+
+/* ===================== compact toolbar (mobile) ===================== */
+.toolbar-c{display:none}
+
+/* ===================== NOTIFICATIONS ===================== */
+.notif{position:fixed;top:70px;right:260px;z-index:var(--z-notif);display:flex;flex-direction:column;gap:8px;pointer-events:none}
+@keyframes notifLife{0%{transform:translateX(115%);opacity:0}7%{transform:translateX(0);opacity:1}90%{transform:translateX(0);opacity:1}100%{transform:translateX(115%);opacity:0}}
+.notif-card{background:var(--panel);border:2px solid var(--gold);border-radius:8px;padding:10px 16px;font-size:12px;color:var(--gold);
+  box-shadow:0 6px 22px rgba(0,0,0,.5);max-width:280px;display:flex;align-items:center;gap:8px;animation:notifLife 4s var(--ease-out-expo) forwards}
+.notif-card::before{content:'';flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
+
+/* ===================== PANELS (modals) ===================== */
+.panel-overlay{position:fixed;inset:0;background:rgba(4,7,14,.72);backdrop-filter:blur(3px);z-index:var(--z-overlay);
+  display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn var(--dur-normal) var(--ease-out-quart)}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{transform:translateY(24px) scale(.98);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+.panel{position:relative;z-index:var(--z-panel);background:var(--panel);border:2px solid var(--line);border-radius:12px;
+  max-width:560px;width:100%;max-height:85vh;overflow-y:auto;animation:slideUp var(--dur-slow) var(--ease-out-expo);box-shadow:0 18px 50px rgba(0,0,0,.6)}
+.panel-title{font-family:'Press Start 2P',monospace;font-size:12px;color:var(--cyan);padding:14px 16px;border-bottom:1px solid var(--line);
+  display:flex;justify-content:space-between;align-items:center}
+.panel-body{padding:14px 16px}
+.panel::-webkit-scrollbar,.dir-list::-webkit-scrollbar,.sidebar-l::-webkit-scrollbar,.chat-box::-webkit-scrollbar,.log-box::-webkit-scrollbar,.bottom-bar::-webkit-scrollbar{width:8px;height:8px}
+.panel::-webkit-scrollbar-thumb,.dir-list::-webkit-scrollbar-thumb,.sidebar-l::-webkit-scrollbar-thumb,.chat-box::-webkit-scrollbar-thumb,.log-box::-webkit-scrollbar-thumb,.bottom-bar::-webkit-scrollbar-thumb{background:#2c3a5c;border-radius:4px}
+
+.btn-game{font-family:'Press Start 2P',monospace;font-size:9px;padding:9px 14px;border:2px solid;border-radius:7px;cursor:pointer;
+  transition:transform var(--dur-fast) var(--ease-out-quart),filter var(--dur-fast),background var(--dur-fast);text-transform:uppercase;background:var(--panel-2);color:var(--ink)}
 .btn-game:hover:not(:disabled){transform:translateY(-2px);filter:brightness(1.2)}
 .btn-game:active:not(:disabled){transform:translateY(1px)}
 .btn-game:disabled{opacity:.5;cursor:not-allowed}
-:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
-.btn-game:focus-visible{outline-offset:3px}
-.btn-run{border-color:#4caf50;color:#4caf50}.btn-run:hover{background:#4caf5030}
-.btn-staff{border-color:#2196f3;color:#2196f3}.btn-staff:hover{background:#2196f330}
-.btn-chat{border-color:#ff9800;color:#ff9800}.btn-chat:hover{background:#ff980030}
-.btn-train{border-color:#e91e63;color:#e91e63}.btn-train:hover{background:#e91e6330}
-.btn-log{border-color:#9c27b0;color:#9c27b0}.btn-log:hover{background:#9c27b030}
-.btn-close{border-color:#f44336;color:#f44336;font-size:8px;padding:6px 10px}.btn-close:hover{background:#f4433630}
+.btn-close{border-color:var(--bad);color:var(--bad);font-size:8px;padding:7px 10px}.btn-close:hover{background:#ff6b6b22}
+.btn-chat{border-color:#ff9800;color:#ff9800}.btn-chat:hover:not(:disabled){background:#ff980022}
+.btn-train{border-color:#e91e63;color:#e91e63}.btn-train:hover:not(:disabled){background:#e91e6322}
+.btn-analytics{border-color:#7e57c2;color:#b39ddb}.btn-analytics:hover:not(:disabled){background:#7e57c222}
+.btn-ok{border-color:var(--good);color:var(--good)}.btn-ok:hover:not(:disabled){background:#3ddc8422}
+.btn-no{border-color:var(--bad);color:var(--bad)}.btn-no:hover:not(:disabled){background:#ff6b6b22}
+.badge-count{background:var(--bad);color:#fff;border-radius:8px;padding:1px 6px;margin-left:6px;font-size:8px}
 
-.panel-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.65);backdrop-filter:blur(2px);z-index:var(--z-overlay);display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn var(--dur-normal) var(--ease-out-quart)}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes slideUp{from{transform:translateY(24px) scale(.98);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
-.panel{position:relative;z-index:var(--z-panel);background:linear-gradient(180deg,#5d4037 0%,#4e342e 4px,#3e2723 4px,#3e2723 100%);border:4px solid #8d6e63;border-radius:8px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;animation:slideUp var(--dur-slow) var(--ease-out-expo);box-shadow:0 12px 40px rgba(0,0,0,0.55)}
-.panel-title{font-family:'Press Start 2P',monospace;font-size:12px;color:#ffd54f;padding:12px 16px;text-shadow:2px 2px 0 #3e2723;border-bottom:2px solid #5d4037}
-.panel-body{padding:12px 16px}
-.panel::-webkit-scrollbar{width:8px}.panel::-webkit-scrollbar-track{background:#2e1a0e}.panel::-webkit-scrollbar-thumb{background:#8d6e63;border-radius:4px}
-
-.emp-card{background:#2e1a0e;border:2px solid #5d4037;border-radius:6px;padding:10px;margin-bottom:8px;display:flex;gap:10px;align-items:center;cursor:pointer;transition:all .15s}
-.emp-card:hover{border-color:#ffd54f;background:#3e2723}
-.emp-avatar{width:36px;height:36px;border-radius:4px;border:2px solid;display:flex;align-items:center;justify-content:center;font-size:18px}
-.emp-info{flex:1}
+.emp-card{background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:10px;margin-bottom:8px;display:flex;gap:10px;align-items:center}
+.emp-avatar{width:38px;height:38px;border-radius:8px;border:2px solid;display:flex;align-items:center;justify-content:center;font-size:18px;flex:0 0 auto}
+.emp-info{flex:1;min-width:0}
 .emp-name{font-family:'Press Start 2P',monospace;font-size:9px;margin-bottom:4px}
 .emp-role{font-size:11px;color:var(--muted)}
-.emp-stars{color:#ffd54f;font-size:12px;letter-spacing:2px}
+.emp-stars{color:var(--gold);font-size:12px;letter-spacing:2px}
 
-.chat-box{background:#1a1a2e;border:2px solid #5d4037;border-radius:6px;height:200px;overflow-y:auto;padding:8px;margin-bottom:8px}
-.chat-msg{margin-bottom:6px;font-size:12px;line-height:1.4}
-.chat-msg.pm{color:#ff9800}.chat-msg.user{color:#4fc3f7}.chat-msg.sys{color:#9c27b0;font-style:italic}
-.chat-input{width:100%;background:#2e1a0e;border:2px solid #5d4037;border-radius:4px;padding:8px;color:#f0e6c8;font-family:inherit;font-size:13px;outline:none}
-.chat-input:focus{border-color:#ff9800}
+.chat-box{background:var(--panel-3);border:1px solid var(--line);border-radius:8px;height:230px;overflow-y:auto;padding:10px;margin-bottom:8px}
+.chat-msg{margin-bottom:7px;font-size:12px;line-height:1.45}
+.chat-msg.pm{color:#ffb74d}.chat-msg.user{color:var(--cyan)}.chat-msg.sys{color:#b39ddb;font-style:italic}
+.chat-input,.train-select,.train-textarea{width:100%;background:var(--panel-3);border:1px solid var(--line);border-radius:7px;
+  padding:9px;color:var(--ink);font-family:inherit;font-size:13px;outline:none}
+.chat-input:focus,.train-select:focus,.train-textarea:focus{border-color:var(--cyan)}
+.train-select{margin-bottom:8px}.train-textarea{resize:vertical;min-height:64px;margin-bottom:8px}
+.train-select option{background:var(--panel-2)}
 
-.log-box{background:#1a1a2e;border:2px solid #5d4037;border-radius:6px;height:280px;overflow-y:auto;padding:8px}
-.log-line{font-size:11px;margin-bottom:4px;padding:2px 0;border-bottom:1px solid #2e1a0e;color:#a5d6a7}
+.log-box{background:var(--panel-3);border:1px solid var(--line);border-radius:8px;height:300px;overflow-y:auto;padding:10px}
+.log-line{font-size:11px;margin-bottom:4px;padding:2px 0;border-bottom:1px solid var(--line-soft);color:#a5d6a7}
 .log-line.err{color:#ef9a9a}
 
-/* empty + loading states */
-.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:32px 16px;text-align:center;color:var(--muted)}
-.empty-state .icon{font-size:32px;opacity:.85;filter:grayscale(.2)}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:30px 16px;text-align:center;color:var(--muted)}
+.empty-state .icon{font-size:32px;opacity:.85}
 .empty-state .head{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--ink-dim)}
 .empty-state .sub{font-size:12px;line-height:1.5;max-width:34ch}
-.skeleton{background:linear-gradient(90deg,#3a241480 25%,#5d403780 37%,#3a241480 63%);background-size:400% 100%;animation:shimmer 1.4s var(--ease-out-quart) infinite;border-radius:4px}
+.skeleton{background:linear-gradient(90deg,#16203780 25%,#22305280 37%,#16203780 63%);background-size:400% 100%;animation:shimmer 1.4s var(--ease-out-quart) infinite;border-radius:7px}
 @keyframes shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
 .skel-card{height:60px;margin-bottom:8px}
 
-.train-select{width:100%;background:#2e1a0e;border:2px solid #5d4037;border-radius:4px;padding:8px;color:#f0e6c8;font-family:inherit;font-size:13px;outline:none;margin-bottom:8px}
-.train-select option{background:#2e1a0e}
-.train-textarea{width:100%;background:#2e1a0e;border:2px solid #5d4037;border-radius:4px;padding:8px;color:#f0e6c8;font-family:inherit;font-size:13px;outline:none;resize:vertical;min-height:60px;margin-bottom:8px}
-.train-textarea:focus,.train-select:focus{border-color:#e91e63}
-.chat-input:focus-visible,.train-select:focus-visible,.train-textarea:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
+.status-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-family:'Press Start 2P',monospace}
+.status-auto{background:#10331f;color:var(--good);border:1px solid #235c3a}
+.status-running{background:#1d1a0a;color:var(--gold);border:1px solid #5c4e23}
 
-.status-badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:10px;font-family:'Press Start 2P',monospace}
-.status-auto{background:#4caf5030;color:#4caf50;border:1px solid #4caf50}
-.status-running{background:#ff980030;color:#ff9800;border:1px solid #ff9800}
-
-.notif{position:fixed;top:60px;right:16px;z-index:var(--z-notif);display:flex;flex-direction:column;gap:8px;pointer-events:none}
-@keyframes notifLife{
-  0%{transform:translateX(115%);opacity:0}
-  7%{transform:translateX(0);opacity:1}
-  90%{transform:translateX(0);opacity:1}
-  100%{transform:translateX(115%);opacity:0}
-}
-.notif-card{background:#4e342e;border:3px solid var(--gold);border-radius:6px;padding:10px 16px;font-size:12px;color:var(--gold);box-shadow:0 6px 20px rgba(0,0,0,0.45);max-width:280px;display:flex;align-items:center;gap:8px;animation:notifLife 4s var(--ease-out-expo) forwards}
-.notif-card::before{content:'';flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
-
-/* touch targets on small screens */
-@media (max-width:640px){
-  .top-bar{padding:6px 10px;gap:8px}
-  .top-bar .title{font-size:11px}
-  .bottom-bar{gap:6px}
-  .btn-game{padding:10px 12px;min-height:44px}
-  .panel{max-height:88vh}
-}
-
-/* ===== Right dashboard rail (live agent status + activity) ===== */
-.rail{position:fixed;top:54px;right:0;bottom:0;width:300px;z-index:var(--z-bars);
-  background:linear-gradient(180deg,#4e342e 0%,#3e2723 100%);border-left:4px solid #8d6e63;
-  display:flex;flex-direction:column;box-shadow:-6px 0 20px rgba(0,0,0,0.35)}
-.rail-sec{display:flex;flex-direction:column;min-height:0}
-.rail-sec.grow{flex:1}
-.rail-head{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--gold);
-  padding:10px 12px 8px;display:flex;align-items:center;justify-content:space-between;
-  border-bottom:2px solid #5d4037;text-shadow:1px 1px 0 #2e1a0e}
-.rail-head .count{color:var(--muted);font-size:8px}
-.rail-list{padding:8px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
-.rail-list::-webkit-scrollbar{width:7px}.rail-list::-webkit-scrollbar-thumb{background:#8d6e63;border-radius:4px}
-.rail-list::-webkit-scrollbar-track{background:#2e1a0e}
-.agent-row{display:flex;align-items:center;gap:9px;padding:7px 9px;background:#2e1a0e;
-  border:2px solid #4e342e;border-radius:6px;cursor:pointer;transition:border-color var(--dur-fast),transform var(--dur-fast) var(--ease-out-quart),background var(--dur-fast);text-align:left;width:100%;font-family:inherit}
-.agent-row:hover{border-color:var(--gold);transform:translateX(-3px)}
-.agent-row:active{transform:translateX(0)}
-.agent-dot{width:14px;height:14px;border-radius:3px;flex:0 0 auto;box-shadow:0 0 0 2px #00000040 inset}
-.agent-meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-.agent-name{font-family:'Press Start 2P',monospace;font-size:8px;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.agent-sub{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.state-badge{flex:0 0 auto;font-size:9px;padding:2px 6px;border-radius:3px;display:flex;align-items:center;gap:4px;border:1px solid}
-.state-badge .led{width:6px;height:6px;border-radius:50%}
-.st-working{color:#7bd88f;border-color:#3f6f4a;background:#3f6f4a22}.st-working .led{background:#7bd88f;box-shadow:0 0 5px #7bd88f}
-.st-walking{color:#74c0ff;border-color:#37597a;background:#37597a22}.st-walking .led{background:#74c0ff;box-shadow:0 0 5px #74c0ff}
-.st-idle{color:#e6c14d;border-color:#7a6a2e;background:#7a6a2e22}.st-idle .led{background:#e6c14d}
-.rail-log{padding:8px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:3px;background:#241710}
-.rail-log::-webkit-scrollbar{width:7px}.rail-log::-webkit-scrollbar-thumb{background:#8d6e63;border-radius:4px}
-.rail-logline{font-size:10px;line-height:1.45;color:#bfe3b0;border-bottom:1px solid #2e1a0e;padding-bottom:2px}
-.rail-logline.err{color:#ef9a9a}
-.rail-logline .t{color:var(--muted);margin-right:5px}
-.chat-line{font-size:11px;line-height:1.5;border-bottom:1px solid #2e1a0e;padding:5px 0}
-.chat-who{font-family:'Press Start 2P',monospace;font-size:8px;margin-right:6px;white-space:nowrap}
-.chat-txt{color:var(--ink-dim)}
-
-/* ===== Pipeline progress stepper ===== */
-.pipeline{margin-top:auto;background:linear-gradient(0deg,#2e1a0e 0%,#3e2723 100%);
-  border-top:3px solid #8d6e63;padding:7px 14px;display:flex;align-items:center;gap:4px;
-  justify-content:center;flex-wrap:wrap;z-index:var(--z-bars)}
-.pipeline .plabel{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--muted);margin-right:8px}
-.pstep{display:flex;align-items:center;gap:7px}
-.pstep .chip{display:flex;align-items:center;gap:5px;padding:4px 9px;border-radius:5px;
-  border:2px solid #5d4037;background:#2e1a0e;font-size:11px;color:var(--muted);transition:all var(--dur-normal) var(--ease-out-quart)}
-.pstep .chip .n{font-family:'Press Start 2P',monospace;font-size:8px}
-.pstep.done .chip{border-color:#3f6f4a;color:#7bd88f;background:#3f6f4a22}
-.pstep.active .chip{border-color:var(--gold);color:var(--gold);background:#ffd54f1a;box-shadow:0 0 0 2px #ffd54f33;transform:translateY(-2px)}
-.pstep .arrow{color:#5d4037;font-size:12px}
-.pstep.done .arrow{color:#3f6f4a}
-@media (min-width:900px){
-  .bottom-bar,.pipeline{margin-right:300px}
-  .notif{right:316px}
-}
-@media (max-width:899px){ .rail{display:none} }
-
-/* ===== Approve/Pending + Analytics ===== */
-.btn-approve{border-color:#26a69a;color:#26a69a}.btn-approve:hover:not(:disabled){background:#26a69a30}
-.btn-analytics{border-color:#7e57c2;color:#7e57c2}.btn-analytics:hover:not(:disabled){background:#7e57c230}
-.badge-count{background:#ef5350;color:#fff;border-radius:8px;padding:1px 6px;margin-left:6px;font-size:8px}
-.pending-card{background:#2e1a0e;border:2px solid #5d4037;border-radius:6px;padding:10px;margin-bottom:10px}
-.pending-card img{width:100%;max-height:170px;object-fit:cover;border-radius:4px;border:2px solid #5d4037;margin-bottom:8px;background:#1a1a2e}
+.pending-card{background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:10px;margin-bottom:10px}
+.pending-card img{width:100%;max-height:170px;object-fit:cover;border-radius:7px;border:1px solid var(--line);margin-bottom:8px;background:var(--panel-3)}
 .pending-head{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--gold);line-height:1.6;margin-bottom:6px}
 .pending-cap{font-size:12px;line-height:1.5;color:var(--ink-dim);white-space:pre-wrap;max-height:120px;overflow-y:auto;margin-bottom:6px}
 .pending-src{font-size:10px;color:var(--muted);margin-bottom:8px}
-.pending-actions{display:flex;gap:8px}
-.pending-actions .btn-game{flex:1;font-size:8px;padding:9px}
-.btn-ok{border-color:#66bb6a;color:#66bb6a}.btn-ok:hover:not(:disabled){background:#66bb6a30}
-.btn-no{border-color:#ef5350;color:#ef5350}.btn-no:hover:not(:disabled){background:#ef535030}
-.stat-card{background:#2e1a0e;border:2px solid #5d4037;border-radius:6px;padding:10px;margin-bottom:8px;display:flex;gap:10px}
-.stat-card img{width:60px;height:60px;object-fit:cover;border-radius:4px;flex:0 0 auto;background:#1a1a2e}
+.pending-actions{display:flex;gap:8px}.pending-actions .btn-game{flex:1;font-size:8px;padding:10px}
+.stat-card{background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:10px;margin-bottom:8px;display:flex;gap:10px}
+.stat-card img{width:60px;height:60px;object-fit:cover;border-radius:7px;flex:0 0 auto;background:var(--panel-3)}
 .sc-body{flex:1;min-width:0}
 .stat-msg{font-size:12px;color:var(--ink-dim);line-height:1.4;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .stat-row{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted);align-items:center}
 .stat-row b{color:var(--ink);font-family:'Press Start 2P',monospace;font-size:9px;margin-right:3px}
-.sc-link{font-size:11px;color:#74c0ff;text-decoration:none;display:inline-block;margin-top:5px}.sc-link:hover{text-decoration:underline}
+.sc-link{font-size:11px;color:var(--cyan);text-decoration:none;display:inline-block;margin-top:5px}.sc-link:hover{text-decoration:underline}
 
-/* honor reduced-motion: keep entrances as instant crossfades, kill looping/decorative motion */
+/* ----- Employee profile ----- */
+.prof-top{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+.prof-av{width:54px;height:54px;border-radius:12px;border:2px solid;display:flex;align-items:center;justify-content:center;font-size:26px;flex:0 0 auto;background:var(--panel-3)}
+.prof-id{flex:1;min-width:0}
+.prof-name{font-family:'Press Start 2P',monospace;font-size:13px;margin-bottom:6px}
+.prof-sub{font-size:11px;color:var(--muted)}
+.prof-lv{display:inline-block;font-family:'Press Start 2P',monospace;font-size:8px;color:#1a1208;background:var(--gold);border-radius:5px;padding:3px 7px;margin-top:6px}
+.prof-xpwrap{margin-bottom:12px}
+.prof-xpbar{height:10px;background:rgba(255,255,255,.1);border-radius:5px;overflow:hidden;margin-top:5px}
+.prof-xpbar>div{height:10px;border-radius:5px;transition:width var(--dur-slow) var(--ease-out-expo)}
+.prof-xplabel{display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
+.prof-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.prof-stat{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:9px 6px;text-align:center}
+.prof-stat .v{font-family:'Press Start 2P',monospace;font-size:13px;color:var(--ink)}
+.prof-stat .k{font-size:9px;color:var(--muted);margin-top:4px}
+.sect-label{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--cyan);margin:4px 0 8px;display:flex;align-items:center;gap:7px}
+.sect-label .c{color:var(--muted);font-size:8px}
+.lesson{background:var(--panel-2);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:8px;padding:9px 11px;margin-bottom:8px}
+.lesson-meta{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-bottom:5px}
+.lesson-meta .from{color:var(--gold)}
+.lesson-txt{font-size:12px;line-height:1.5;color:var(--ink-dim)}
+.prof-actions{display:flex;gap:8px;margin-top:6px}.prof-actions .btn-game{flex:1}
+
+/* ----- Team activity feed ----- */
+.feed{background:var(--panel-3);border:1px solid var(--line);border-radius:8px;max-height:50vh;overflow-y:auto;padding:10px}
+.feed-line{display:flex;gap:9px;padding:7px 0;border-bottom:1px solid var(--line-soft)}
+.feed-line:last-child{border-bottom:none}
+.feed-av{width:26px;height:26px;border-radius:7px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:13px;border:1px solid var(--line);background:var(--panel-2)}
+.feed-body{flex:1;min-width:0}
+.feed-who{font-family:'Press Start 2P',monospace;font-size:8px;margin-bottom:3px}
+.feed-txt{font-size:12px;line-height:1.45;color:var(--ink-dim)}
+.feed-t{font-size:9px;color:var(--muted);flex:0 0 auto}
+
+/* ===================== RESPONSIVE ===================== */
+@media (max-width:1180px){
+  .sidebar-l,.sidebar-r{display:none}
+  .bottom-bar{left:0;right:0}
+  .pipeline{left:0;right:0}
+  .notif{right:16px}
+  .toolbar-c{display:flex;position:fixed;top:60px;left:0;right:0;z-index:var(--z-bars);gap:7px;padding:8px 10px;overflow-x:auto;
+    background:#0b1322;border-bottom:1px solid var(--line)}
+  .toolbar-c .btn-game{flex:0 0 auto;font-size:8px;padding:9px 11px;min-height:42px}
+}
 @media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
-  .panel-overlay{animation:fadeIn .12s linear}
-  .panel{animation:fadeIn .12s linear}
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
   .notif-card{animation:none;opacity:1;transform:none}
-  .skeleton{animation:none;background:#3a2414}
+  .skeleton{animation:none;background:#1a2440}
+  .tb-pill .led{animation:none}
 }
 </style>
 </head>
@@ -202,298 +285,189 @@ canvas#office{position:absolute;top:0;left:0;width:100%;height:100%;image-render
 <div id="ui"><div id="root"></div></div>
 
 <script>
-// === KAIROSOFT OFFICE GAME ENGINE ===
-const canvas = document.getElementById('office');
-const ctx = canvas.getContext('2d');
+// ===================== VIRTUAL OFFICE ENGINE =====================
+const canvas=document.getElementById('office');
+const ctx=canvas.getContext('2d');
+if(!ctx.roundRect){ctx.roundRect=function(x,y,w,h,r){if(typeof r==='number')r=[r,r,r,r];this.moveTo(x+r[0],y);this.lineTo(x+w-r[1],y);this.arcTo(x+w,y,x+w,y+r[1],r[1]);this.lineTo(x+w,y+h-r[2]);this.arcTo(x+w,y+h,x+w-r[2],y+h,r[2]);this.lineTo(x+r[3],y+h);this.arcTo(x,y+h,x,y+h-r[3],r[3]);this.lineTo(x,y+r[0]);this.arcTo(x,y,x+r[0],y,r[0]);return this;};}
 
-const TILE = 40;
-const COLS = 20;
-const ROWS = 14;
+const TILE=40, COLS=20, ROWS=14;
+const GW=COLS*TILE, GH=ROWS*TILE; // 800 x 560
 
-const PAL = {
-  // warm wood-plank office floor (was grassy green)
-  floor1:'#caa46e',floor2:'#c39c63',floorLine:'#a8854f',floorGlow:'rgba(255,224,150,0.10)',
-  // area rug (teal) to zone the desks
-  rug1:'#3f6f8f',rug2:'#356180',rugEdge:'#28506b',rugTrim:'#7fb2cf',
-  // walls: richer warm brown with baseboard
-  wall:'#7a5a42',wallTop:'#9c7858',wallDark:'#4a3324',wallBase:'#37251a',wallEdge:'#b08a66',
-  // desks
+const PAL={
+  floor1:'#caa46e',floor2:'#bd9760',floorLine:'#a8854f',
+  wall:'#5a4636',wallTop:'#7a5f48',wallDark:'#2c2018',wallBase:'#241a12',wallEdge:'#9c7a5a',
   desk:'#b78457',deskTop:'#cd9d70',deskDark:'#8c6038',deskLeg:'#6b4628',
-  // monitors
-  screen:'#7fd4ff',screenGlow:'#c4ecff',screenOff:'#2e3a44',screenFrame:'#1f262c',
-  // seating + foliage
+  screen:'#7fd4ff',screenGlow:'#c4ecff',screenFrame:'#1f262c',
   chair:'#4f3c2a',chairSeat:'#665033',
   plant:'#3f9450',plantHi:'#57b366',plantPot:'#bd6a3e',plantPotHi:'#d4824f',
-  // light + shadow
-  shadow:'rgba(40,22,8,0.20)',carpet:'#3f6f8f',
+  shadow:'rgba(20,12,5,0.22)',
   sky:'#8fd0ff',skyLow:'#cdecff',cloud:'#ffffff',sun:'#ffe08a',
-  // employee identity colors (keys must stay named for Staff panel lookup)
-  pm:'#e3433a',reporter:'#2f7fd1',writer:'#3fa64f',guardian:'#9a45b8',graphic:'#f0892e',publisher:'#f3c623',
-  // characters
-  skin:'#ffce9e',skinDark:'#e9b07d',skinSh:'#d99a64',hair:'#3d2a1c',hairLight:'#5a4030',
+  pm:'#ff5a52',reporter:'#3aa0ff',writer:'#46c46a',guardian:'#b06cff',graphic:'#ff9838',publisher:'#ffd23f',
+  skin:'#ffce9e',skinSh:'#d99a64',hair:'#3d2a1c',hairLight:'#5a4030',
 };
 
-// respect OS reduced-motion: hold characters still instead of wandering/breathing
-const reduceMotionMQ = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : {matches:false};
-let prefersReduced = reduceMotionMQ.matches;
-reduceMotionMQ.addEventListener && reduceMotionMQ.addEventListener('change', e=>{prefersReduced=e.matches;});
-
-let W, H, scale, railW=0;
-const RAIL_W=300;
-function resize() {
-  W = window.innerWidth; H = window.innerHeight;
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = W * dpr; canvas.height = H * dpr;
-  canvas.style.width = W+'px'; canvas.style.height = H+'px';
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.imageSmoothingEnabled = false;
-  railW = (W>=900) ? RAIL_W : 0;
-  scale = Math.min((W-railW) / (COLS * TILE), (H - 150) / (ROWS * TILE));
-}
-window.addEventListener('resize', resize);
-resize();
-
-// Office layout: 0=floor, 1=wall, 2=desk, 3=plant, 4=coffee, 5=bookshelf, 6=window, 7=door, 8=carpet
-const LAYOUT = [
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-  [1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,1],
-  [1,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,1],
-  [1,8,3,8,2,8,8,2,8,8,2,8,8,8,5,5,8,3,8,1],
-  [1,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,1],
-  [1,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,1],
-  [1,8,8,8,8,8,8,8,4,8,8,8,8,8,8,8,8,8,8,1],
-  [1,8,8,8,2,8,8,2,8,8,2,8,8,8,8,8,8,8,8,1],
-  [1,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,1],
-  [1,8,3,8,8,8,8,8,8,8,8,8,8,8,5,8,3,8,8,1],
-  [1,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,1],
-  [1,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,1],
-  [1,1,1,1,1,1,1,1,1,7,7,1,1,1,1,1,1,1,1,1],
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+const GUT=20;
+const RW=(GW-GUT)/2, RH=(GH-GUT)/2;
+const WT=8, HH=26;
+const ROOMS=[
+  {id:'lead',    en:'LEADERSHIP CORE', th:'บริหาร',  color:PAL.pm,       x:0,      y:0,      w:RW, h:RH},
+  {id:'news',    en:'NEWSROOM CORE',   th:'กองข่าว', color:PAL.reporter, x:RW+GUT, y:0,      w:RW, h:RH},
+  {id:'review',  en:'REVIEW CORE',     th:'ตรวจสอบ', color:PAL.guardian, x:0,      y:RH+GUT, w:RW, h:RH},
+  {id:'creative',en:'CREATIVE CORE',   th:'ครีเอทีฟ',color:PAL.graphic,  x:RW+GUT, y:RH+GUT, w:RW, h:RH},
 ];
 
-// Desk positions (col, row) for each employee
-const DESKS = {
-  pm: {x:4, y:3, label:'PM'},
-  reporter: {x:7, y:3, label:'นักข่าว'},
-  writer: {x:10, y:3, label:'นักเขียน'},
-  guardian: {x:4, y:7, label:'ตรวจสอบ'},
-  graphic: {x:7, y:7, label:'กราฟิก'},
-  publisher: {x:10, y:7, label:'โพสต์'},
-};
+const TEAM=[
+  {id:'pm',       file:'pm.json',       name:'PM',       role:'ผู้จัดการ',    icon:'👔',roomId:'lead'},
+  {id:'reporter', file:'reporter.json', name:'นักข่าว',  role:'หาข่าว',       icon:'📰',roomId:'news'},
+  {id:'writer',   file:'writer.json',   name:'นักเขียน', role:'เขียนแคปชั่น', icon:'✍️',roomId:'news'},
+  {id:'guardian', file:'guardian.json', name:'ตรวจสอบ',  role:'ตรวจคุณภาพ',   icon:'🔍',roomId:'review'},
+  {id:'graphic',  file:'graphic.json',  name:'กราฟิก',   role:'ทำภาพ',        icon:'🎨',roomId:'creative'},
+  {id:'publisher',file:'publisher.json',name:'โพสต์',    role:'ลงเพจ',        icon:'📱',roomId:'creative'},
+];
 
-// Characters
-class Character {
-  constructor(id, name, color, homeCol, homeRow) {
-    this.id = id;
-    this.name = name;
-    this.color = color;
-    this.homeX = homeCol * TILE + TILE/2;
-    this.homeY = homeRow * TILE + TILE/2;
-    this.x = this.homeX + (Math.random()-0.5)*20;
-    this.y = this.homeY + (Math.random()-0.5)*20;
-    this.targetX = this.homeX;
-    this.targetY = this.homeY;
-    this.state = 'working';
-    this.dir = 0; // 0=down,1=left,2=right,3=up
-    this.frame = 0;
-    this.frameTick = 0;
-    this.wanderTimer = 120 + Math.random()*300;
-    this.bubble = null;
-    this.bubbleTimer = 0;
-    this.working = false;
-    this.highlightTimer = 0;
+const reduceMotionMQ=window.matchMedia?window.matchMedia('(prefers-reduced-motion: reduce)'):{matches:false};
+let prefersReduced=reduceMotionMQ.matches;
+reduceMotionMQ.addEventListener&&reduceMotionMQ.addEventListener('change',e=>{prefersReduced=e.matches;});
+
+function chromeFor(w){
+  if(w<1180) return {left:0,right:0,top:108,bottom:104};
+  return {left:210,right:248,top:60,bottom:104};
+}
+let W,H,scale=1,OX=0,OY=0,CH={left:0,right:0,top:60,bottom:104};
+function resize(){
+  W=window.innerWidth;H=window.innerHeight;
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=W*dpr;canvas.height=H*dpr;
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.imageSmoothingEnabled=false;
+  CH=chromeFor(W);
+  const availW=Math.max(120,W-CH.left-CH.right);
+  const availH=Math.max(120,H-CH.top-CH.bottom);
+  scale=Math.min(availW/GW,availH/GH);
+  OX=CH.left+(availW-GW*scale)/2;
+  OY=CH.top+(availH-GH*scale)/2;
+}
+window.addEventListener('resize',resize);resize();
+
+class Character{
+  constructor(id,name,color,room,hx,hy){
+    this.id=id;this.name=name;this.color=color;this.room=room;
+    this.homeX=hx;this.homeY=hy;
+    this.x=hx;this.y=hy;this.targetX=hx;this.targetY=hy;
+    this.state='working';this.dir=0;this.frame=0;this.frameTick=0;
+    this.wanderTimer=180+Math.random()*240;
+    this.bubble=null;this.bubbleTimer=0;this.working=false;this.highlightTimer=0;
+    this.desk={x:Math.round(hx-20),y:Math.round(hy-24)};
   }
-  update() {
-    this.frameTick++;
-    if(this.frameTick > 8){this.frame=(this.frame+1)%6;this.frameTick=0;}
-    if(this.bubbleTimer>0) this.bubbleTimer--;
-    else this.bubble=null;
-    if(this.highlightTimer>0) this.highlightTimer--;
-
-    const dx=this.targetX-this.x, dy=this.targetY-this.y;
+  bounds(){const r=this.room;return {x0:r.x+WT+14,y0:r.y+HH+34,x1:r.x+r.w-WT-14,y1:r.y+r.h-WT-16};}
+  update(){
+    this.frameTick++;if(this.frameTick>8){this.frame=(this.frame+1)%6;this.frameTick=0;}
+    if(this.bubbleTimer>0)this.bubbleTimer--;else this.bubble=null;
+    if(this.highlightTimer>0)this.highlightTimer--;
+    const dx=this.targetX-this.x,dy=this.targetY-this.y;
     const dist=Math.sqrt(dx*dx+dy*dy);
     if(dist>2){
-      const spd=1.2;
-      this.x+=dx/dist*spd;
-      this.y+=dy/dist*spd;
-      this.state='walking';
-      if(Math.abs(dx)>Math.abs(dy)) this.dir=dx<0?1:2;
-      else this.dir=dy<0?3:0;
-    } else {
+      const spd=1.1;
+      this.x+=dx/dist*spd;this.y+=dy/dist*spd;this.state='walking';
+      if(Math.abs(dx)>Math.abs(dy))this.dir=dx<0?1:2;else this.dir=dy<0?3:0;
+    }else{
       this.x=this.targetX;this.y=this.targetY;
       if(this.state==='walking'){
         const atHome=Math.abs(this.x-this.homeX)<5&&Math.abs(this.y-this.homeY)<5;
         this.state=atHome?'working':'idle';
-        if(this.state==='working') this.dir=0; // นั่งทำงานหันหน้าเข้าหาเรา (เห็นหน้า)
-        this.wanderTimer=180+Math.random()*240;
+        if(this.state==='working')this.dir=0;
+        this.wanderTimer=200+Math.random()*260;
       }
       this.wanderTimer--;
       if(this.wanderTimer<=0&&!this.working&&!prefersReduced){
         const atHome=Math.abs(this.x-this.homeX)<5&&Math.abs(this.y-this.homeY)<5;
         if(atHome){
-          if(Math.random()<0.22){ // นานๆ ทีลุกไปเดินเล่น/พักกาแฟ
-            const wx=3+Math.random()*14, wy=3+Math.random()*8;
-            this.targetX=wx*TILE+TILE/2; this.targetY=wy*TILE+TILE/2;
+          if(Math.random()<0.25){
+            const b=this.bounds();
+            this.targetX=b.x0+Math.random()*(b.x1-b.x0);
+            this.targetY=b.y0+Math.random()*(b.y1-b.y0);
             this.state='walking';
-          } else {
-            this.wanderTimer=300+Math.random()*360; // นั่งทำงานต่อ
-          }
-        } else {
-          this.targetX=this.homeX; this.targetY=this.homeY; this.state='walking';
-        }
+          }else this.wanderTimer=320+Math.random()*360;
+        }else{this.targetX=this.homeX;this.targetY=this.homeY;this.state='walking';}
       }
     }
   }
-  showBubble(text,dur){this.bubble=text;this.bubbleTimer=dur||120;}
-  say(text,dur){this.bubble=text;this.bubbleTimer=dur||200;}
+  showBubble(t,d){this.bubble=t;this.bubbleTimer=d||120;}
+  say(t,d){this.bubble=t;this.bubbleTimer=d||220;}
   ping(){this.highlightTimer=72;this.showBubble('👋',72);}
   goHome(){this.targetX=this.homeX;this.targetY=this.homeY;this.working=true;}
   relax(){this.working=false;this.wanderTimer=60+Math.random()*100;}
 }
 
-const characters = [
-  new Character('pm','PM',PAL.pm, DESKS.pm.x, DESKS.pm.y),
-  new Character('reporter','นักข่าว',PAL.reporter, DESKS.reporter.x, DESKS.reporter.y),
-  new Character('writer','นักเขียน',PAL.writer, DESKS.writer.x, DESKS.writer.y),
-  new Character('guardian','ตรวจสอบ',PAL.guardian, DESKS.guardian.x, DESKS.guardian.y),
-  new Character('graphic','กราฟิก',PAL.graphic, DESKS.graphic.x, DESKS.graphic.y),
-  new Character('publisher','โพสต์',PAL.publisher, DESKS.publisher.x, DESKS.publisher.y),
-];
-// expose for the React dashboard rail (live status + click-to-ping)
-window.characters = characters;
-window.pingCharacter = (id)=>{const c=characters.find(x=>x.id===id); if(c) c.ping();};
-window.getAgentStates = ()=>characters.map(c=>({id:c.id,name:c.name,color:c.color,state:c.state,working:c.working}));
-// ให้ตัวละครพูดข้อความ (text) + ส่งเข้า team-chat feed ของ React
-window.sayLine = (id,text,dur)=>{const c=characters.find(x=>x.id===id); if(!c) return; c.say(text,dur); if(window.onAgentSay) window.onAgentSay(id,c.name,c.color,text);};
+const characters=[];const charById={};
+ROOMS.forEach(room=>{
+  const mem=TEAM.filter(t=>t.roomId===room.id);const N=mem.length;
+  mem.forEach((t,k)=>{
+    const cx=Math.round(room.x+room.w*(k+1)/(N+1));
+    const cy=Math.round(room.y+HH+(room.h-HH)*0.60);
+    const c=new Character(t.id,t.name,PAL[t.id],room,cx,cy);
+    characters.push(c);charById[t.id]=c;
+  });
+});
+window.characters=characters;
+window.TEAM=TEAM;
+window.pingCharacter=(id)=>{const c=charById[id];if(c)c.ping();};
+window.getAgentStates=()=>characters.map(c=>({id:c.id,name:c.name,color:c.color,state:c.state,working:c.working}));
+window.sayLine=(id,text,dur)=>{const c=charById[id];if(!c)return;c.say(text,dur);if(window.onAgentSay)window.onAgentSay(id,c.name,c.color,text);};
 
-// === Sprite พนักงาน (MetroCity, MIT) — แทนตัวบล็อกที่วาดด้วยโค้ด ===
-const AGENT_SPRITE = {pm:'boss',reporter:'listing',writer:'dev',guardian:'tech',graphic:'marketing',publisher:'admin'};
-const DIR_NAME = ['down','left','right','up']; // ตรงกับ c.dir 0=down,1=left,2=right,3=up
-const sprites = {};
+const AGENT_SPRITE={pm:'boss',reporter:'listing',writer:'dev',guardian:'tech',graphic:'marketing',publisher:'admin'};
+const DIR_NAME=['down','left','right','up'];
+const sprites={};
 for(const type of Object.values(AGENT_SPRITE)){
-  sprites[type] = {};
-  for(const d of DIR_NAME){
-    const img = new Image();
-    img.src = 'assets/sprites/agent-'+type+'-walk-'+d+'.png';
-    sprites[type][d] = img;
-  }
+  sprites[type]={};
+  for(const d of DIR_NAME){const img=new Image();img.src='assets/sprites/agent-'+type+'-walk-'+d+'.png';sprites[type][d]=img;}
 }
 
-// Particles
-let particles = [];
-function addParticle(x,y,color,text){
-  particles.push({x,y,color,text,life:60,vy:-0.8,vx:(Math.random()-0.5)*0.5});
-}
+let particles=[];
+function addParticle(x,y,color,text){particles.push({x,y,color,text,life:60,vy:-0.8,vx:(Math.random()-0.5)*0.5});}
+window.addParticle=addParticle;
 
-// Pipeline state (updated from React)
-window.gameState = {pipelineRunning:false, lastEvent:''};
-
+window.gameState={pipelineRunning:false,lastEvent:''};
 function startPipelineAnim(){
   characters.forEach(c=>{c.goHome();c.showBubble('💪',90);});
-  setTimeout(()=>{
-    characters.forEach((c,i)=>{
-      setTimeout(()=>c.showBubble('⚡',70), i*400);
-    });
-  },1500);
+  setTimeout(()=>characters.forEach((c,i)=>setTimeout(()=>c.showBubble('⚡',70),i*350)),1400);
 }
-function endPipelineAnim(success){
-  characters.forEach(c=>{
-    c.relax();
-    c.showBubble(success?'🎉':'😢',100);
-    if(success) addParticle(c.x,c.y-30,'#ffd54f','✨');
-  });
-}
-window.startPipelineAnim=startPipelineAnim;
-window.endPipelineAnim=endPipelineAnim;
+function endPipelineAnim(ok){characters.forEach(c=>{c.relax();c.showBubble(ok?'🎉':'😢',100);if(ok)addParticle(c.x,c.y-30,'#ffd54f','✨');});}
+window.startPipelineAnim=startPipelineAnim;window.endPipelineAnim=endPipelineAnim;
 
-// === DRAWING ===
-function drawFloor(x,y,col,row){
-  ctx.fillStyle=((col+row)%2===0)?PAL.floor1:PAL.floor2;
-  ctx.fillRect(x,y,TILE,TILE);
-  // wood plank seams: horizontal joint + staggered vertical joint
-  ctx.fillStyle=PAL.floorLine;
-  ctx.fillRect(x,y,TILE,1);
-  ctx.fillRect((row%2===0)?x+TILE/2:x,y,1,TILE);
-  // soft top sheen for a polished-floor read
-  ctx.fillStyle='rgba(255,246,224,0.06)';
-  ctx.fillRect(x,y+1,TILE,2);
-}
+function shade(hex,amt){const n=parseInt(hex.slice(1),16);let r=(n>>16)+amt,g=((n>>8)&255)+amt,b=(n&255)+amt;r=Math.max(0,Math.min(255,r));g=Math.max(0,Math.min(255,g));b=Math.max(0,Math.min(255,b));return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);}
+function rr(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}
 
-function drawWallTile(x,y){
-  ctx.fillStyle=PAL.wall;ctx.fillRect(x,y,TILE,TILE);
-  ctx.fillStyle=PAL.wallTop;ctx.fillRect(x,y,TILE,6);          // lit cornice
-  ctx.fillStyle=PAL.wallEdge;ctx.fillRect(x,y,TILE,2);         // bright top edge
-  ctx.fillStyle=PAL.wallBase;ctx.fillRect(x,y+TILE-5,TILE,5);  // shadowed base
-  ctx.fillStyle='rgba(0,0,0,0.06)';ctx.fillRect(x,y+TILE/2,TILE,1);
+function drawRoomFloor(ix,iy,iw,ih){
+  ctx.save();ctx.beginPath();ctx.rect(ix,iy,iw,ih);ctx.clip();
+  const T=34;
+  for(let r=0;r*T<ih+T;r++)for(let c=0;c*T<iw+T;c++){
+    const px=ix+c*T,py=iy+r*T;
+    ctx.fillStyle=((c+r)%2===0)?PAL.floor1:PAL.floor2;ctx.fillRect(px,py,T,T);
+    ctx.fillStyle=PAL.floorLine;ctx.fillRect(px,py,T,1);ctx.fillRect(px,py,1,T);
+  }
+  ctx.fillStyle='rgba(0,0,0,0.10)';ctx.fillRect(ix,iy,iw,8);
+  ctx.restore();
 }
-
-function drawTile(x,y,col,row){
-  const tile=LAYOUT[row]?.[col]||0;
-  switch(tile){
-    case 1: // wall
-      drawWallTile(x,y);
-      break;
-    case 6: { // window
-      drawWallTile(x,y);
-      const g=ctx.createLinearGradient(0,y+6,0,y+TILE-7);
-      g.addColorStop(0,PAL.sky);g.addColorStop(1,PAL.skyLow);
-      ctx.fillStyle=g;ctx.fillRect(x+5,y+6,TILE-10,TILE-13);
-      ctx.fillStyle=PAL.sun;ctx.globalAlpha=.9;            // morning sun
-      ctx.beginPath();ctx.arc(x+TILE-12,y+13,4,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
-      ctx.fillStyle=PAL.cloud;                              // clouds
-      ctx.fillRect(x+8,y+19,11,3);ctx.fillRect(x+10,y+16,7,3);
-      ctx.fillStyle=PAL.wallDark;                           // muntins
-      ctx.fillRect(x+TILE/2-1,y+6,2,TILE-13);
-      ctx.fillRect(x+5,y+TILE/2-2,TILE-10,2);
-      ctx.fillStyle=PAL.wallEdge;ctx.fillRect(x+3,y+TILE-7,TILE-6,3); // sill
-      break;
-    }
-    case 7: // door
-      drawWallTile(x,y);
-      ctx.fillStyle=PAL.deskDark;ctx.fillRect(x+5,y+3,TILE-10,TILE-3);
-      ctx.fillStyle=PAL.deskLeg;ctx.fillRect(x+7,y+5,TILE-14,TILE-7);
-      ctx.fillStyle=PAL.sun;ctx.fillRect(x+TILE-12,y+TILE/2,3,3); // knob
-      break;
-    case 8: // floor
-      drawFloor(x,y,col,row);
-      break;
-    default:
-      drawFloor(x,y,col,row);
+function drawBookshelf(x,y){
+  ctx.fillStyle=PAL.shadow;ctx.fillRect(x+3,y+30,34,3);
+  ctx.fillStyle=PAL.deskLeg;ctx.fillRect(x+2,y,36,30);
+  ctx.fillStyle=PAL.wallBase;ctx.fillRect(x+4,y+2,32,26);
+  const colors=['#e57373','#64b5f6','#81c784','#fff176','#ce93d8','#ffab91'];
+  for(let r=0;r<3;r++){
+    for(let b=0;b<4;b++){ctx.fillStyle=colors[(r*4+b+(x>>5))%colors.length];const bh=5+((b+r)%2)*2;ctx.fillRect(x+6+b*8,y+3+r*8+(7-bh),6,bh);}
+    ctx.fillStyle=PAL.deskLeg;ctx.fillRect(x+4,y+10+r*8,32,2);
   }
 }
-
-function drawRug(px,py,w,h){
-  ctx.fillStyle=PAL.shadow;ctx.fillRect(px+3,py+h-2,w-4,4);
-  ctx.fillStyle=PAL.rugEdge;ctx.fillRect(px,py,w,h);
-  ctx.fillStyle=PAL.rug1;ctx.fillRect(px+3,py+3,w-6,h-6);
-  ctx.fillStyle=PAL.rug2;ctx.fillRect(px+9,py+9,w-18,h-18);
-  ctx.fillStyle=PAL.rugTrim;
-  ctx.fillRect(px+6,py+6,w-12,1);ctx.fillRect(px+6,py+h-7,w-12,1);
-  ctx.fillRect(px+6,py+6,1,h-12);ctx.fillRect(px+w-7,py+6,1,h-12);
+function drawWindowPanel(x,y){
+  const w=46,h=24;
+  ctx.fillStyle=PAL.wallDark;ctx.fillRect(x-2,y-2,w+4,h+4);
+  const g=ctx.createLinearGradient(0,y,0,y+h);g.addColorStop(0,PAL.sky);g.addColorStop(1,PAL.skyLow);
+  ctx.fillStyle=g;ctx.fillRect(x,y,w,h);
+  ctx.fillStyle=PAL.cloud;ctx.fillRect(x+9,y+13,13,3);ctx.fillRect(x+12,y+9,8,3);
+  ctx.fillStyle=PAL.sun;ctx.globalAlpha=.9;ctx.beginPath();ctx.arc(x+w-11,y+8,4,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+  ctx.fillStyle=PAL.wallDark;ctx.fillRect(x+w/2-1,y,2,h);ctx.fillRect(x,y+h/2-1,w,2);
 }
-
-function drawDesk(x,y){
-  // chair tucked behind
-  ctx.fillStyle=PAL.chair;ctx.fillRect(x+15,y+23,10,9);
-  ctx.fillStyle=PAL.chairSeat;ctx.fillRect(x+15,y+21,10,4);
-  // drop shadow + legs + apron
-  ctx.fillStyle=PAL.shadow;ctx.fillRect(x+3,y+31,34,5);
-  ctx.fillStyle=PAL.deskLeg;ctx.fillRect(x+5,y+30,3,6);ctx.fillRect(x+32,y+30,3,6);
-  ctx.fillStyle=PAL.deskDark;ctx.fillRect(x+4,y+26,32,6);
-  // top: side + lit surface
-  ctx.fillStyle=PAL.desk;ctx.fillRect(x+2,y+15,36,11);
-  ctx.fillStyle=PAL.deskTop;ctx.fillRect(x+2,y+12,36,4);
-  // monitor
-  ctx.fillStyle=PAL.screenFrame;ctx.fillRect(x+11,y,18,14);
-  ctx.fillStyle=PAL.screen;ctx.fillRect(x+13,y+2,14,9);
-  ctx.fillStyle=PAL.screenGlow;ctx.fillRect(x+14,y+3,5,3);
-  ctx.fillStyle='#4a4f55';ctx.fillRect(x+19,y+14,2,3);
-  ctx.fillStyle=PAL.deskDark;ctx.fillRect(x+15,y+16,10,2);
-  // keyboard + mouse
-  ctx.fillStyle='#3a3f44';ctx.fillRect(x+9,y+19,14,4);
-  ctx.fillStyle='#3a3f44';ctx.fillRect(x+26,y+19,4,3);
-}
-
 function drawPlant(x,y){
   ctx.fillStyle=PAL.shadow;ctx.fillRect(x+11,y+33,18,3);
   ctx.fillStyle=PAL.plantPot;ctx.fillRect(x+12,y+22,16,12);
@@ -507,289 +481,132 @@ function drawPlant(x,y){
   ctx.beginPath();ctx.arc(x+17,y+11,4,0,Math.PI*2);ctx.fill();
   ctx.beginPath();ctx.arc(x+24,y+10,3,0,Math.PI*2);ctx.fill();
 }
-
-function drawCoffee(x,y){ // water cooler
-  ctx.fillStyle=PAL.shadow;ctx.fillRect(x+8,y+34,22,3);
-  ctx.fillStyle='#cfd8dc';ctx.fillRect(x+10,y+8,18,28);
-  ctx.fillStyle='#eceff1';ctx.fillRect(x+10,y+8,5,28);
-  ctx.fillStyle=PAL.sky;ctx.fillRect(x+14,y+10,10,9);
-  ctx.fillStyle=PAL.skyLow;ctx.fillRect(x+14,y+10,4,9);
-  ctx.fillStyle='#37474f';ctx.fillRect(x+14,y+22,10,5);
-  ctx.fillStyle='#e3433a';ctx.fillRect(x+16,y+24,3,2);
-  ctx.fillStyle='#2f7fd1';ctx.fillRect(x+20,y+24,3,2);
+function drawDesk(x,y){
+  ctx.fillStyle=PAL.chair;ctx.fillRect(x+15,y+23,10,9);
+  ctx.fillStyle=PAL.chairSeat;ctx.fillRect(x+15,y+21,10,4);
+  ctx.fillStyle=PAL.shadow;ctx.fillRect(x+3,y+31,34,5);
+  ctx.fillStyle=PAL.deskLeg;ctx.fillRect(x+5,y+30,3,6);ctx.fillRect(x+32,y+30,3,6);
+  ctx.fillStyle=PAL.deskDark;ctx.fillRect(x+4,y+26,32,6);
+  ctx.fillStyle=PAL.desk;ctx.fillRect(x+2,y+15,36,11);
+  ctx.fillStyle=PAL.deskTop;ctx.fillRect(x+2,y+12,36,4);
+  ctx.fillStyle=PAL.screenFrame;ctx.fillRect(x+11,y,18,14);
+  ctx.fillStyle=PAL.screen;ctx.fillRect(x+13,y+2,14,9);
+  ctx.fillStyle=PAL.screenGlow;ctx.fillRect(x+14,y+3,5,3);
+  ctx.fillStyle='#4a4f55';ctx.fillRect(x+19,y+14,2,3);
+  ctx.fillStyle=PAL.deskDark;ctx.fillRect(x+15,y+16,10,2);
+  ctx.fillStyle='#3a3f44';ctx.fillRect(x+9,y+19,14,4);ctx.fillRect(x+26,y+19,4,3);
 }
-
-function drawBookshelf(x,y){
-  ctx.fillStyle=PAL.shadow;ctx.fillRect(x+3,y+34,34,3);
-  ctx.fillStyle=PAL.deskLeg;ctx.fillRect(x+2,y+2,36,34);
-  ctx.fillStyle=PAL.deskDark;ctx.fillRect(x+4,y+4,32,30);
-  const colors=['#e57373','#64b5f6','#81c784','#fff176','#ce93d8','#ffab91'];
-  for(let r=0;r<3;r++){
-    for(let b=0;b<4;b++){
-      ctx.fillStyle=colors[(r*4+b+(x>>5))%colors.length];
-      const bh=6+((b+r)%2)*2;
-      ctx.fillRect(x+6+b*8,y+5+r*10+(8-bh),6,bh);
-    }
-    ctx.fillStyle=PAL.deskLeg;ctx.fillRect(x+4,y+13+r*10,32,2);
-  }
-}
-
-function drawFurniture(col,row,x,y){
-  const tile=LAYOUT[row]?.[col];
-  if(tile===2) drawDesk(x,y);
-  if(tile===3) drawPlant(x,y);
-  if(tile===4) drawCoffee(x,y);
-  if(tile===5) drawBookshelf(x,y);
-}
-
-function shade(hex,amt){ // lighten(+)/darken(-) a #rrggbb hex
-  const n=parseInt(hex.slice(1),16);
-  let r=(n>>16)+amt,g=((n>>8)&255)+amt,b=(n&255)+amt;
-  r=Math.max(0,Math.min(255,r));g=Math.max(0,Math.min(255,g));b=Math.max(0,Math.min(255,b));
-  return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+function drawRoom(room){
+  const {x,y,w,h,color}=room;
+  ctx.fillStyle='rgba(0,0,0,0.45)';rr(x+5,y+7,w,h,12);ctx.fill();
+  ctx.fillStyle=PAL.wallDark;rr(x,y,w,h,12);ctx.fill();
+  ctx.fillStyle=PAL.wall;rr(x+3,y+3,w-6,h-6,9);ctx.fill();
+  const ix=x+WT,iy=y+HH,iw=w-2*WT,ih=h-HH-WT;
+  ctx.save();rr(ix,iy,iw,ih,5);ctx.clip();drawRoomFloor(ix,iy,iw,ih);ctx.restore();
+  drawBookshelf(ix+6,iy+4);drawBookshelf(ix+iw-44,iy+4);
+  drawWindowPanel(ix+iw/2-23,iy+6);
+  drawPlant(ix-2,iy+ih-38);drawPlant(ix+iw-38,iy+ih-38);
+  const hg=ctx.createLinearGradient(0,y,0,y+HH);hg.addColorStop(0,shade(color,38));hg.addColorStop(1,color);
+  ctx.fillStyle=hg;ctx.beginPath();ctx.roundRect(x,y,w,HH,[12,12,0,0]);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.22)';ctx.fillRect(x+4,y+2,w-8,1);
+  ctx.font='8px "Press Start 2P"';ctx.textBaseline='middle';
+  ctx.fillStyle='rgba(0,0,0,0.35)';ctx.fillText(room.en,x+13,y+HH/2+1);
+  ctx.fillStyle='#fff';ctx.fillText(room.en,x+12,y+HH/2);
+  ctx.textBaseline='alphabetic';
+  const anyWorking=characters.some(c=>c.room===room&&c.state!=='idle');
+  ctx.fillStyle=anyWorking?'#9dffc4':'#ffd98a';
+  ctx.beginPath();ctx.arc(x+w-16,y+HH/2,3.5,0,Math.PI*2);ctx.fill();
 }
 
 function drawCharacter(c){
-  const s=2;
-  const walk=c.state==='walking';
-  const f=c.frame;
-  // gentle idle breathing bob (1px), suppressed when reduced-motion-ish/walking
-  const bob = (walk||prefersReduced) ? 0 : (Math.sin(tick*0.07 + c.homeX*0.13) > 0.3 ? -1 : 0);
-  const hl = c.highlightTimer>0;
-  const jump = hl ? -Math.abs(Math.sin((72-c.highlightTimer)*0.26))*5 : 0;
-  const bx=c.x-5*s, by=c.y-8*s+bob+jump;
-  const dark=shade(c.color,-45), lite=shade(c.color,35);
-
-  // pulsing ring when pinged from the dashboard rail
-  if(hl){
-    ctx.strokeStyle='#ffd54f';ctx.lineWidth=2;
-    ctx.globalAlpha=0.4+0.4*Math.sin(c.highlightTimer*0.4);
-    ctx.beginPath();ctx.ellipse(c.x,c.y+8*s,9*s,3.2*s,0,0,Math.PI*2);ctx.stroke();
-    ctx.globalAlpha=1;
-  }
-  // contact shadow
-  ctx.fillStyle=PAL.shadow;
-  ctx.beginPath();ctx.ellipse(c.x,c.y+8*s,6*s,2.2*s,0,0,Math.PI*2);ctx.fill();
-
-  // === sprite จริง (MetroCity) ถ้าโหลดเสร็จ ไม่งั้น fallback เป็นตัวบล็อกโค้ด ===
+  const s=2;const walk=c.state==='walking';const f=c.frame;
+  const bob=(walk||prefersReduced)?0:(Math.sin(tick*0.07+c.homeX*0.13)>0.3?-1:0);
+  const hl=c.highlightTimer>0;
+  const jump=hl?-Math.abs(Math.sin((72-c.highlightTimer)*0.26))*5:0;
+  const bx=c.x-5*s,by=c.y-8*s+bob+jump;
+  const dark=shade(c.color,-45),lite=shade(c.color,35);
+  if(hl){ctx.strokeStyle='#ffd54f';ctx.lineWidth=2;ctx.globalAlpha=0.4+0.4*Math.sin(c.highlightTimer*0.4);ctx.beginPath();ctx.ellipse(c.x,c.y+8*s,9*s,3.2*s,0,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;}
+  ctx.fillStyle=PAL.shadow;ctx.beginPath();ctx.ellipse(c.x,c.y+8*s,6*s,2.2*s,0,0,Math.PI*2);ctx.fill();
   const sprType=AGENT_SPRITE[c.id];
   const sprImg=sprType&&sprites[sprType]&&sprites[sprType][DIR_NAME[c.dir]||'down'];
   if(sprImg&&sprImg.complete&&sprImg.naturalWidth>0){
-    const FR=64, SPR=46;
-    const fr=walk?(c.frame%6):0;
-    ctx.imageSmoothingEnabled=false;
-    ctx.drawImage(sprImg, fr*FR,0,FR,FR, Math.round(c.x-SPR/2), Math.round(c.y+12-SPR+bob+jump), SPR, SPR);
-  } else {
-  // legs
-  ctx.fillStyle='#3a4046';
-  const legOff=walk?(f%2===0?2:-2):0;
-  ctx.fillRect(bx+2*s,by+11*s+Math.max(0,legOff),2*s,4*s);
-  ctx.fillRect(bx+6*s,by+11*s+Math.max(0,-legOff),2*s,4*s);
-
-  // arms (behind body)
-  const armOff=(c.state==='working'&&f%2===0)?-1:0;
-  ctx.fillStyle=dark;
-  ctx.fillRect(bx-1*s,by+7*s+armOff,2*s,4*s);
-  ctx.fillRect(bx+9*s,by+7*s-armOff,2*s,4*s);
-
-  // body with shading + outline
-  ctx.fillStyle=dark;ctx.fillRect(bx+1*s-1,by+6*s,8*s+2,6*s+1);   // outline
-  ctx.fillStyle=c.color;ctx.fillRect(bx+1*s,by+6*s,8*s,6*s);
-  ctx.fillStyle=lite;ctx.fillRect(bx+1*s,by+6*s,8*s,1*s);          // top sheen
-  ctx.fillStyle=dark;ctx.fillRect(bx+1*s,by+11*s,8*s,1*s);         // bottom shade
-
-  // head: skin + soft shading
-  ctx.fillStyle=PAL.hair;ctx.fillRect(bx+1*s-1,by,8*s+2,6*s);      // outline/hair frame
-  ctx.fillStyle=PAL.skin;ctx.fillRect(bx+1*s,by+1*s,8*s,5*s);
-  ctx.fillStyle=PAL.skinSh;ctx.fillRect(bx+7*s,by+1*s,2*s,5*s);    // right cheek shade
-  // hair top + side tufts
-  ctx.fillStyle=PAL.hair;
-  ctx.fillRect(bx+1*s,by,8*s,2*s);
-  ctx.fillRect(bx+1*s,by+1*s,1*s,2*s);
-  ctx.fillRect(bx+8*s,by+1*s,1*s,2*s);
-  ctx.fillStyle=PAL.hairLight;ctx.fillRect(bx+2*s,by,3*s,1*s);     // hair highlight
-
-  // face (front-facing)
-  if(c.dir!==3){
-    ctx.fillStyle='#2b2b2b';
-    ctx.fillRect(bx+3*s,by+3*s,s,s+1);
-    ctx.fillRect(bx+6*s,by+3*s,s,s+1);
-    ctx.fillStyle='rgba(255,255,255,0.85)';                        // eye glints
-    ctx.fillRect(bx+3*s,by+3*s,1,1);ctx.fillRect(bx+6*s,by+3*s,1,1);
-    ctx.fillStyle='rgba(255,130,120,0.35)';                        // blush
-    ctx.fillRect(bx+2*s,by+4*s+1,1*s,1*s);ctx.fillRect(bx+7*s,by+4*s+1,1*s,1*s);
-    // mouth: smile when happy, gentle line otherwise
-    ctx.fillStyle='#7a4a3a';
-    if(c.bubble==='🎉'||c.bubble==='😊'){ctx.fillRect(bx+4*s,by+5*s,2*s,s);ctx.fillRect(bx+3*s,by+5*s-1,1*s,1);ctx.fillRect(bx+6*s,by+5*s-1,1*s,1);}
-    else ctx.fillRect(bx+4*s,by+5*s,2*s,1);
+    const FR=64,SPR=46;const fr=walk?(c.frame%6):0;ctx.imageSmoothingEnabled=false;
+    ctx.drawImage(sprImg,fr*FR,0,FR,FR,Math.round(c.x-SPR/2),Math.round(c.y+12-SPR+bob+jump),SPR,SPR);
+  }else{
+    ctx.fillStyle='#3a4046';const legOff=walk?(f%2===0?2:-2):0;
+    ctx.fillRect(bx+2*s,by+11*s+Math.max(0,legOff),2*s,4*s);ctx.fillRect(bx+6*s,by+11*s+Math.max(0,-legOff),2*s,4*s);
+    const armOff=(c.state==='working'&&f%2===0)?-1:0;ctx.fillStyle=dark;
+    ctx.fillRect(bx-1*s,by+7*s+armOff,2*s,4*s);ctx.fillRect(bx+9*s,by+7*s-armOff,2*s,4*s);
+    ctx.fillStyle=dark;ctx.fillRect(bx+1*s-1,by+6*s,8*s+2,6*s+1);
+    ctx.fillStyle=c.color;ctx.fillRect(bx+1*s,by+6*s,8*s,6*s);
+    ctx.fillStyle=lite;ctx.fillRect(bx+1*s,by+6*s,8*s,1*s);ctx.fillStyle=dark;ctx.fillRect(bx+1*s,by+11*s,8*s,1*s);
+    ctx.fillStyle=PAL.hair;ctx.fillRect(bx+1*s-1,by,8*s+2,6*s);
+    ctx.fillStyle=PAL.skin;ctx.fillRect(bx+1*s,by+1*s,8*s,5*s);
+    ctx.fillStyle=PAL.skinSh;ctx.fillRect(bx+7*s,by+1*s,2*s,5*s);
+    ctx.fillStyle=PAL.hair;ctx.fillRect(bx+1*s,by,8*s,2*s);ctx.fillRect(bx+1*s,by+1*s,1*s,2*s);ctx.fillRect(bx+8*s,by+1*s,1*s,2*s);
+    ctx.fillStyle=PAL.hairLight;ctx.fillRect(bx+2*s,by,3*s,1*s);
+    if(c.dir!==3){
+      ctx.fillStyle='#2b2b2b';ctx.fillRect(bx+3*s,by+3*s,s,s+1);ctx.fillRect(bx+6*s,by+3*s,s,s+1);
+      ctx.fillStyle='rgba(255,255,255,0.85)';ctx.fillRect(bx+3*s,by+3*s,1,1);ctx.fillRect(bx+6*s,by+3*s,1,1);
+      ctx.fillStyle='#7a4a3a';ctx.fillRect(bx+4*s,by+5*s,2*s,1);
+    }
   }
-  } // จบ fallback ตัวบล็อก
-
-  // name tag
-  ctx.fillStyle='rgba(0,0,0,0.6)';
-  ctx.font='9px "Press Start 2P"';
+  ctx.fillStyle='rgba(6,10,20,0.78)';ctx.font='9px "Press Start 2P"';
   const tw=ctx.measureText(c.name).width;
   ctx.fillRect(c.x-tw/2-3,by-12,tw+6,12);
-  ctx.fillStyle=c.color;
-  ctx.fillText(c.name,c.x-tw/2,by-3);
-
-  // idle = พักงาน/ว่าง → โชว์ 💤 บนหัว (ถ้าไม่มีบทพูด)
-  if(c.state==='idle' && !c.bubble){
-    ctx.font='13px sans-serif';
-    ctx.textAlign='center';
-    ctx.fillText('💤', c.x, by-15);
-    ctx.textAlign='left';
-  }
-
-  // speech bubble — รองรับทั้ง emoji สั้นๆ และข้อความยาว (auto-size)
+  ctx.fillStyle=c.color;ctx.fillText(c.name,c.x-tw/2,by-3);
+  if(c.state==='idle'&&!c.bubble){ctx.font='13px sans-serif';ctx.textAlign='center';ctx.fillText('💤',c.x,by-15);ctx.textAlign='left';}
   if(c.bubble){
-    const isEmoji = [...c.bubble].length<=2;
-    ctx.font = isEmoji ? '13px sans-serif' : '10px "DotGothic16", sans-serif';
-    let txt = c.bubble;
-    if(!isEmoji && txt.length>28) txt = txt.slice(0,27)+'…';
-    const tw = ctx.measureText(txt).width;
-    const bw = Math.max(22, tw+12), bh = 17;
-    const cx = c.x, cy = by-30;
-    ctx.fillStyle='rgba(255,253,245,0.97)';
-    ctx.strokeStyle='#3e2723'; ctx.lineWidth=1.5;
-    ctx.beginPath(); ctx.roundRect(cx-bw/2, cy-bh/2, bw, bh, 5); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx-3, cy+bh/2-1); ctx.lineTo(cx+3, cy+bh/2-1); ctx.lineTo(cx, cy+bh/2+5); ctx.closePath();
-    ctx.fillStyle='rgba(255,253,245,0.97)'; ctx.fill();
-    ctx.strokeStyle='#3e2723'; ctx.beginPath(); ctx.moveTo(cx-3, cy+bh/2-1); ctx.lineTo(cx,cy+bh/2+5); ctx.lineTo(cx+3,cy+bh/2-1); ctx.stroke();
-    ctx.fillStyle='#2e1a0e'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(txt, cx, cy);
-    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+    const isEmoji=[...c.bubble].length<=2;
+    ctx.font=isEmoji?'13px sans-serif':'10px "DotGothic16",sans-serif';
+    let txt=c.bubble;if(!isEmoji&&txt.length>28)txt=txt.slice(0,27)+'…';
+    const tw2=ctx.measureText(txt).width;const bw=Math.max(22,tw2+12),bh=17;const cx=c.x,cy=by-30;
+    ctx.fillStyle='rgba(255,253,245,0.97)';ctx.strokeStyle='#1a1208';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.roundRect(cx-bw/2,cy-bh/2,bw,bh,5);ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx-3,cy+bh/2-1);ctx.lineTo(cx+3,cy+bh/2-1);ctx.lineTo(cx,cy+bh/2+5);ctx.closePath();ctx.fillStyle='rgba(255,253,245,0.97)';ctx.fill();
+    ctx.fillStyle='#1a1208';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,cx,cy);ctx.textAlign='left';ctx.textBaseline='alphabetic';
   }
 }
-
 function drawParticles(){
   particles=particles.filter(p=>p.life>0);
-  particles.forEach(p=>{
-    p.x+=p.vx;p.y+=p.vy;p.life--;
-    ctx.globalAlpha=p.life/60;
-    ctx.font='14px sans-serif';
-    ctx.fillStyle=p.color;
-    ctx.fillText(p.text||'⭐',p.x,p.y);
-    ctx.globalAlpha=1;
-  });
+  particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.life--;ctx.globalAlpha=p.life/60;ctx.font='14px sans-serif';ctx.fillStyle=p.color;ctx.fillText(p.text||'⭐',p.x,p.y);ctx.globalAlpha=1;});
 }
+function getTimeColor(){const h=new Date().getHours();if(h>=6&&h<10)return 'rgba(255,200,100,0.04)';if(h>=10&&h<17)return 'rgba(255,255,255,0)';if(h>=17&&h<20)return 'rgba(255,150,50,0.06)';return 'rgba(20,24,60,0.18)';}
 
-// Company sign on wall
-function drawSign(ox,oy){
-  const sx=ox+2*TILE, sy=oy+1*TILE;
-  ctx.fillStyle='#ffd54f';
-  ctx.fillRect(sx,sy+4,6*TILE,TILE-8);
-  ctx.fillStyle='#f9a825';
-  ctx.fillRect(sx+2,sy+6,6*TILE-4,TILE-12);
-  ctx.font='bold 11px "Press Start 2P"';
-  ctx.fillStyle='#3e2723';
-  ctx.fillText('PANG NEWS CO.',sx+10,sy+TILE/2+3);
-}
-
-// Time of day lighting
-function getTimeColor(){
-  const h=new Date().getHours();
-  if(h>=6&&h<10) return 'rgba(255,200,100,0.05)'; // morning warm
-  if(h>=10&&h<17) return 'rgba(255,255,255,0)'; // day
-  if(h>=17&&h<20) return 'rgba(255,150,50,0.08)'; // sunset
-  return 'rgba(30,30,80,0.15)'; // night
-}
-
-// === MAIN GAME LOOP ===
 let tick=0;
 function gameLoop(){
   tick++;
   ctx.clearRect(0,0,W,H);
-
-  // background
-  ctx.fillStyle='#1a1a2e';
-  ctx.fillRect(0,0,W,H);
-
-  ctx.save();
-  const ox=((W-railW)-COLS*TILE*scale)/2;
-  const oy=(H-ROWS*TILE*scale)/2 - 6;
-  ctx.translate(ox,oy);
-  ctx.scale(scale,scale);
-
-  // draw tiles
-  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
-    drawTile(c*TILE,r*TILE,c,r);
-  }
-
-  // area rugs that zone the two desk rows
-  drawRug(3*TILE+10, 2*TILE+28, 8*TILE-20, 2*TILE-6);
-  drawRug(3*TILE+10, 6*TILE+28, 8*TILE-20, 2*TILE-6);
-
-  // warm light pools cast from the top windows
-  for(let c=1;c<COLS-1;c++){
-    if(LAYOUT[1]?.[c]===6){
-      const lx=c*TILE, ly=2*TILE;
-      const lg=ctx.createLinearGradient(0,ly,0,ly+TILE*2.2);
-      lg.addColorStop(0,'rgba(255,224,150,0.16)');
-      lg.addColorStop(1,'rgba(255,224,150,0)');
-      ctx.fillStyle=lg;ctx.fillRect(lx-2,ly,TILE+4,TILE*2.2);
-    }
-  }
-
-  // draw furniture
-  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
-    drawFurniture(c,r,c*TILE,r*TILE);
-  }
-
-  // sign
-  drawSign(0,0);
-
-  // update & draw characters (sorted by y for depth)
+  ctx.fillStyle='#0a0e1a';ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.translate(OX,OY);ctx.scale(scale,scale);
+  ROOMS.forEach(drawRoom);
+  characters.forEach(c=>drawDesk(c.desk.x,c.desk.y));
   characters.forEach(c=>c.update());
-  // draw back-to-front by y WITHOUT mutating the stable characters array (rail reads it)
-  [...characters].sort((a,b)=>a.y-b.y).forEach(c=>drawCharacter(c));
-
-  // particles
+  [...characters].sort((a,b)=>a.y-b.y).forEach(drawCharacter);
   drawParticles();
-
-  // time-of-day overlay
-  ctx.fillStyle=getTimeColor();
-  ctx.fillRect(0,0,COLS*TILE,ROWS*TILE);
-
-  // soft interior vignette for depth
-  const vg=ctx.createRadialGradient(COLS*TILE/2,ROWS*TILE/2,TILE*3.5,COLS*TILE/2,ROWS*TILE/2,COLS*TILE*0.6);
-  vg.addColorStop(0,'rgba(0,0,0,0)');
-  vg.addColorStop(1,'rgba(18,10,28,0.30)');
-  ctx.fillStyle=vg;ctx.fillRect(0,0,COLS*TILE,ROWS*TILE);
-
+  ctx.fillStyle=getTimeColor();ctx.fillRect(-OX/scale,-OY/scale,W/scale,H/scale);
   ctx.restore();
-
   requestAnimationFrame(gameLoop);
 }
 gameLoop();
-
-// บทพูดของพนักงานถูกขับเคลื่อนจาก React (idle chatter + coordination) ผ่าน window.sayLine
 </script>
 
 <script type="text/babel">
 const {useState,useEffect,useRef,useCallback}=React;
 const API=window.location.origin;
-
-// (เอาบทคุยสุ่มตอนว่างออกแล้ว — พนักงานพูดเฉพาะตอนทำงานจริง ไม่มั่ว ไม่เปลือง token)
-// ว่าง = idle เงียบ; บทคุยจริงมาจาก pipeline (เขียน→ตรวจ→PM→แก้) ใน tmp/team_chat.json
-// บทประสานงานตอน pipeline ทำงาน (ตรงกับ flow จริง) — [หน่วงเวลา ms, id, ข้อความ]
-const COORD=[
-  [0,'pm','ทีม ได้เวลาหาข่าวรอบใหม่แล้ว เริ่มเลย'],
-  [1500,'reporter','กำลังสแกนข่าวจากหลายสำนัก รอแป๊บ'],
-  [3200,'reporter','เจอข่าวน่าสนใจ! เช็คก่อนว่าไม่ซ้ำ'],
-  [4900,'reporter','ข่าวนี้ทำโพสต์ได้ ส่งให้นักเขียนนะ'],
-  [6400,'writer','รับมาแล้ว ขอดูโพสต์เก่าเป็นแนวก่อน'],
-  [8000,'writer','เขียน caption ให้น่าอ่าน ไม่ใส่ emoji'],
-  [9700,'writer','ร่างเสร็จ ฝากตรวจสอบทีนะ'],
-  [11200,'guardian','เช็คความถูกต้อง + ไม่ซ้ำ + ข่าวสด...'],
-  [12800,'guardian','ผ่าน! ทำกราฟิกต่อได้เลย'],
-  [14300,'graphic','แปะสติกเกอร์น้องปัง + headline ลงรูป'],
-  [16000,'graphic','ภาพเสร็จแล้ว สวยเลย ส่งให้โพสต์'],
-  [17500,'publisher','ลงเพจ FB + IG เรียบร้อย!'],
-  [19000,'pm','งานดีมากทีม เดี๋ยวผมรีวิวอีกที'],
-];
+const ROOM_LABELS={lead:'บริหาร',news:'กองข่าว',review:'ตรวจสอบ',creative:'ครีเอทีฟ'};
+// some server feedback is stored as a structured object — never hand React an object to render
+const asText=(v)=>{
+  if(v==null)return '';
+  if(typeof v==='string')return v;
+  if(typeof v==='number'||typeof v==='boolean')return String(v);
+  if(Array.isArray(v))return v.map(asText).filter(Boolean).join(' · ');
+  if(typeof v==='object')return Object.values(v).map(asText).filter(Boolean).join(' — ');
+  return String(v);
+};
 
 function App(){
+  const TEAM=window.TEAM;
   const [panel,setPanel]=useState(null);
   const [logs,setLogs]=useState([]);
   const [running,setRunning]=useState(false);
@@ -804,6 +621,7 @@ function App(){
   const [trainText,setTrainText]=useState('');
   const [trainResult,setTrainResult]=useState('');
   const [time,setTime]=useState('');
+  const [today,setToday]=useState('');
   const [notifs,setNotifs]=useState([]);
   const [loaded,setLoaded]=useState(false);
   const [agentStates,setAgentStates]=useState([]);
@@ -811,54 +629,34 @@ function App(){
   const [pending,setPending]=useState([]);
   const [analytics,setAnalytics]=useState(null);
   const [analyticsLoading,setAnalyticsLoading]=useState(false);
+  const [profileId,setProfileId]=useState(null);
+  const [profileMem,setProfileMem]=useState([]);
+  const [profileLoading,setProfileLoading]=useState(false);
   const [teamChat,setTeamChat]=useState([]);
   const chatEndRef=useRef(null);
   const logEndRef=useRef(null);
-  const railLogEndRef=useRef(null);
 
   const addLog=(msg,err)=>setLogs(p=>[...p.slice(-50),{t:new Date().toLocaleTimeString('th-TH'),msg,err}]);
-  const addNotif=(msg)=>{
-    const id=Date.now();
-    setNotifs(p=>[...p,{id,msg}]);
-    setTimeout(()=>setNotifs(p=>p.filter(n=>n.id!==id)),4000);
-  };
+  const addNotif=(msg)=>{const id=Date.now();setNotifs(p=>[...p,{id,msg}]);setTimeout(()=>setNotifs(p=>p.filter(n=>n.id!==id)),4000);};
 
-  // Clock
   useEffect(()=>{
-    const i=setInterval(()=>setTime(new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'})),1000);
-    return()=>clearInterval(i);
+    const upd=()=>{const d=new Date();setTime(d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));setToday(d.toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'2-digit'}));};
+    upd();const i=setInterval(upd,1000);return()=>clearInterval(i);
   },[]);
 
-  // Modal a11y: move focus in on open, restore on close, Esc to close, trap Tab
   const lastFocusRef=useRef(null);
   useEffect(()=>{
-    if(!panel){
-      if(lastFocusRef.current){lastFocusRef.current.focus?.();lastFocusRef.current=null;}
-      return;
-    }
+    if(!panel){if(lastFocusRef.current){lastFocusRef.current.focus?.();lastFocusRef.current=null;}return;}
     lastFocusRef.current=document.activeElement;
-    const focusables=()=>{
-      const p=document.querySelector('.panel');
-      if(!p) return [];
-      return [...p.querySelectorAll('button,input,select,textarea,[tabindex]:not([tabindex="-1"])')]
-        .filter(el=>!el.disabled && el.offsetParent!==null);
-    };
+    const focusables=()=>{const p=document.querySelector('.panel');if(!p)return [];return [...p.querySelectorAll('button,input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(el=>!el.disabled&&el.offsetParent!==null);};
     requestAnimationFrame(()=>{const els=focusables();(els[0]||document.querySelector('.panel'))?.focus?.();});
     const onKey=e=>{
       if(e.key==='Escape'){setPanel(null);return;}
-      if(e.key==='Tab'){
-        const els=focusables();
-        if(!els.length) return;
-        const first=els[0], last=els[els.length-1];
-        if(e.shiftKey && document.activeElement===first){e.preventDefault();last.focus();}
-        else if(!e.shiftKey && document.activeElement===last){e.preventDefault();first.focus();}
-      }
+      if(e.key==='Tab'){const els=focusables();if(!els.length)return;const first=els[0],last=els[els.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}
     };
-    window.addEventListener('keydown',onKey);
-    return()=>window.removeEventListener('keydown',onKey);
+    window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey);
   },[panel]);
 
-  // Fetch data
   const fetchAll=useCallback(async()=>{
     try{
       const [tRes,aRes,mRes,pRes,sRes]=await Promise.all([
@@ -869,458 +667,357 @@ function App(){
         fetch(API+'/api/stats').then(r=>r.json()).catch(()=>({})),
       ]);
       setTokens(tRes);setAgents(aRes);setPostMode(mRes.mode);
-      setPending(Array.isArray(pRes)?pRes:[]);
-      setStats(sRes&&typeof sRes==='object'?sRes:{});
-    }catch{}
-    finally{setLoaded(true);}
+      setPending(Array.isArray(pRes)?pRes:[]);setStats(sRes&&typeof sRes==='object'?sRes:{});
+    }catch{}finally{setLoaded(true);}
   },[]);
-
-  const fetchPending=useCallback(async()=>{
-    try{const r=await fetch(API+'/api/pending');const d=await r.json();setPending(Array.isArray(d)?d:[]);}catch{}
-  },[]);
-  const approveItem=async(id,item)=>{
-    try{await fetch(API+`/api/pending/${id}/approve?item=${item}`,{method:'POST'});addNotif('อนุมัติแล้ว — กำลังโพสต์ ✅');addLog(`✅ อนุมัติโพสต์ ${id}#${item}`);}catch(e){addNotif('อนุมัติไม่ได้');}
-    fetchPending();
-  };
-  const rejectItem=async(id,item)=>{
-    try{await fetch(API+`/api/pending/${id}/reject?item=${item}`,{method:'POST'});addNotif('ไม่อนุมัติ ✕');addLog(`✕ ปฏิเสธโพสต์ ${id}#${item}`);}catch(e){addNotif('ทำไม่ได้');}
-    fetchPending();
-  };
-  const clearPending=async()=>{
-    try{await fetch(API+'/api/pending/clear',{method:'POST'});addNotif('ล้าง pending แล้ว');}catch{}
-    fetchPending();
-  };
-  const loadAnalytics=useCallback(async()=>{
-    setAnalyticsLoading(true);
-    try{const r=await fetch(API+'/api/analytics');const d=await r.json();setAnalytics(d);}
-    catch(e){setAnalytics({error:e.message});}
-    setAnalyticsLoading(false);
-  },[]);
-  const sendToOpenClaw=async()=>{
-    const msg=chatInput.trim();
-    if(!msg) return;
-    setChatInput('');
-    setChatLogs(p=>[...p,{from:'user',text:msg},{from:'sys',text:'📨 ส่งให้ PM (OpenClaw) ใน Discord แล้ว — รอคำตอบในช่อง Discord'}]);
-    try{await fetch(API+'/api/chat/discord',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})});}
-    catch(e){setChatLogs(p=>[...p,{from:'sys',text:'ส่งไม่ได้: '+e.message}]);}
-  };
+  const fetchPending=useCallback(async()=>{try{const r=await fetch(API+'/api/pending');const d=await r.json();setPending(Array.isArray(d)?d:[]);}catch{}},[]);
+  const approveItem=async(id,item)=>{try{await fetch(API+`/api/pending/${id}/approve?item=${item}`,{method:'POST'});addNotif('อนุมัติแล้ว — กำลังโพสต์ ✅');addLog(`✅ อนุมัติโพสต์ ${id}#${item}`);}catch(e){addNotif('อนุมัติไม่ได้');}fetchPending();};
+  const rejectItem=async(id,item)=>{try{await fetch(API+`/api/pending/${id}/reject?item=${item}`,{method:'POST'});addNotif('ไม่อนุมัติ ✕');addLog(`✕ ปฏิเสธโพสต์ ${id}#${item}`);}catch(e){addNotif('ทำไม่ได้');}fetchPending();};
+  const clearPending=async()=>{try{await fetch(API+'/api/pending/clear',{method:'POST'});addNotif('ล้าง pending แล้ว');}catch{}fetchPending();};
+  const loadAnalytics=useCallback(async()=>{setAnalyticsLoading(true);try{const r=await fetch(API+'/api/analytics');const d=await r.json();setAnalytics(d);}catch(e){setAnalytics({error:e.message});}setAnalyticsLoading(false);},[]);
+  const sendToOpenClaw=async()=>{const msg=chatInput.trim();if(!msg)return;setChatInput('');setChatLogs(p=>[...p,{from:'user',text:msg},{from:'sys',text:'📨 ส่งให้ PM (OpenClaw) ใน Discord แล้ว — รอคำตอบในช่อง Discord'}]);try{await fetch(API+'/api/chat/discord',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})});}catch(e){setChatLogs(p=>[...p,{from:'sys',text:'ส่งไม่ได้: '+e.message}]);}};
+  // open an employee profile: ping the character + load their REAL learned lessons
+  const openProfile=useCallback(async(id)=>{
+    window.pingCharacter&&window.pingCharacter(id);
+    setProfileId(id);setPanel('profile');setProfileLoading(true);setProfileMem([]);
+    const t=TEAM.find(x=>x.id===id);if(!t){setProfileLoading(false);return;}
+    try{const r=await fetch(API+'/api/memory?agent='+encodeURIComponent(t.file));const d=await r.json();setProfileMem(Array.isArray(d)?d:[]);}catch{setProfileMem([]);}
+    setProfileLoading(false);
+  },[TEAM]);
+  const loadTeamChat=useCallback(async()=>{try{const r=await fetch(API+'/api/team_chat');const d=await r.json();setTeamChat(Array.isArray(d)?d:[]);}catch{}},[]);
 
   useEffect(()=>{fetchAll();const i=setInterval(fetchAll,20000);return()=>clearInterval(i);},[fetchAll]);
 
-  // Run pipeline
   const runPipeline=async()=>{
-    if(running) return;
-    setRunning(true);
-    window.gameState.pipelineRunning=true;
-    window.startPipelineAnim();
-    addLog('🚀 Pipeline เริ่มทำงาน...');
-    addNotif('Pipeline เริ่มแล้ว!');
-    // drive the visual stepper through the 5 stages while we poll
+    if(running)return;
+    setRunning(true);window.gameState.pipelineRunning=true;window.startPipelineAnim();
+    addLog('🚀 Pipeline เริ่มทำงาน...');addNotif('Pipeline เริ่มแล้ว!');setPanel(null);
     setPipelineStep(0);
     let stepTimer=setInterval(()=>setPipelineStep(s=>(s>=0&&s<4)?s+1:s),1600);
-    // ดึง "บทพูดจากงานจริง" ที่ pipeline เขียนไว้ มาโชว์ (แทนบทแต่ง)
     let shownChat=0;
-    const chatPoll=setInterval(async()=>{
-      try{
-        const r=await fetch(API+'/api/team_chat'); const arr=await r.json();
-        if(Array.isArray(arr)&&arr.length>shownChat){
-          for(let i=shownChat;i<arr.length;i++){const m=arr[i]; window.sayLine&&window.sayLine(m.id,m.text,240);}
-          shownChat=arr.length;
-        }
-      }catch{}
-    },1500);
-    const finish=(ok)=>{
-      clearInterval(stepTimer); clearInterval(chatPoll);
-      setRunning(false);
-      window.gameState.pipelineRunning=false;
-      window.endPipelineAnim(ok);
-      if(ok){setPipelineStep(5);setTimeout(()=>setPipelineStep(-1),3000);} else setPipelineStep(-1);
-      fetchPending();
-    };
+    const chatPoll=setInterval(async()=>{try{const r=await fetch(API+'/api/team_chat');const arr=await r.json();if(Array.isArray(arr)&&arr.length>shownChat){for(let i=shownChat;i<arr.length;i++){const m=arr[i];window.sayLine&&window.sayLine(m.id,m.text,240);}shownChat=arr.length;}}catch{}},1500);
+    const finish=(ok)=>{clearInterval(stepTimer);clearInterval(chatPoll);setRunning(false);window.gameState.pipelineRunning=false;window.endPipelineAnim(ok);if(ok){setPipelineStep(5);setTimeout(()=>setPipelineStep(-1),3000);}else setPipelineStep(-1);fetchPending();};
     try{
       await fetch(API+'/api/run',{method:'POST'});
-      const poll=setInterval(async()=>{
-        try{
-          const r=await fetch(API+'/api/run/status');
-          const d=await r.json();
-          if(d.status==='done'||d.status==='idle'){
-            clearInterval(poll);
-            finish(true);
-            addLog('✅ Pipeline เสร็จแล้ว!');
-            addNotif('Pipeline เสร็จสมบูรณ์!');
-            if(d.log){
-              d.log.split('\n').filter(l=>l.trim()).slice(-10).forEach(l=>addLog(l));
-            }
-          }
-        }catch{clearInterval(poll);finish(false);}
-      },3000);
-    }catch(e){
-      finish(false);
-      addLog('❌ Pipeline error: '+e.message,true);
-    }
+      const poll=setInterval(async()=>{try{const r=await fetch(API+'/api/run/status');const d=await r.json();if(d.status==='done'||d.status==='idle'){clearInterval(poll);finish(true);addLog('✅ Pipeline เสร็จแล้ว!');addNotif('Pipeline เสร็จสมบูรณ์!');if(d.log){d.log.split('\n').filter(l=>l.trim()).slice(-10).forEach(l=>addLog(l));}}}catch{clearInterval(poll);finish(false);}},3000);
+    }catch(e){finish(false);addLog('❌ Pipeline error: '+e.message,true);}
   };
-
-  // Toggle post mode
-  const toggleMode=async()=>{
-    try{
-      const r=await fetch(API+'/api/postmode',{method:'POST'});
-      const d=await r.json();
-      setPostMode(d.mode);
-      addNotif('โหมด: '+(d.mode==='auto'?'โพสต์เลย ⚡':'ถามก่อนโพสต์ 🔍'));
-    }catch{}
-  };
-
-  // Chat with PM
+  const toggleMode=async()=>{try{const r=await fetch(API+'/api/postmode',{method:'POST'});const d=await r.json();setPostMode(d.mode);addNotif('โหมด: '+(d.mode==='auto'?'โพสต์เลย ⚡':'ถามก่อนโพสต์ 🔍'));}catch{}};
   const sendChat=async()=>{
-    if(!chatInput.trim()||chatLoading) return;
-    const msg=chatInput.trim();
-    setChatInput('');
-    setChatLogs(p=>[...p,{from:'user',text:msg}]);
-    setChatLoading(true);
-    try{
-      const r=await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})});
-      const d=await r.json();
-      setChatLogs(p=>[...p,{from:'pm',text:d.reply||d.error||'...'}]);
-      if(d.trained) addNotif('PM สั่งเทรนพนักงานแล้ว!');
-    }catch(e){
-      setChatLogs(p=>[...p,{from:'sys',text:'Error: '+e.message}]);
-    }
+    if(!chatInput.trim()||chatLoading)return;const msg=chatInput.trim();setChatInput('');
+    setChatLogs(p=>[...p,{from:'user',text:msg}]);setChatLoading(true);
+    try{const r=await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})});const d=await r.json();setChatLogs(p=>[...p,{from:'pm',text:asText(d.reply)||asText(d.error)||'...'}]);if(d.trained)addNotif('PM สั่งเทรนพนักงานแล้ว!');}catch(e){setChatLogs(p=>[...p,{from:'sys',text:'Error: '+e.message}]);}
     setChatLoading(false);
   };
-
-  // Train
   const doTrain=async()=>{
-    if(!trainText.trim()) return;
-    setTrainResult('กำลังเทรน...');
-    try{
-      const r=await fetch(API+'/api/train',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({agent:trainAgent,feedback:trainText})});
-      const d=await r.json();
-      setTrainResult(`✅ ${d.name} จำแล้ว (${d.memoryCount} ความจำ)`);
-      setTrainText('');
-      addNotif('เทรนสำเร็จ!');
-      // animate the character
-      const charMap={
-        'writer.json':'writer','reporter.json':'reporter','graphic.json':'graphic',
-        'publisher.json':'publisher','guardian.json':'guardian','pm.json':'pm'
-      };
-      const cid=charMap[trainAgent];
-      const ch=window.characters?.find(c=>c.id===cid);
-      if(ch){ch.showBubble('📚',100);window.addParticle?.(ch.x,ch.y-30,'#ffd54f','+EXP');}
+    if(!trainText.trim())return;setTrainResult('กำลังเทรน...');
+    try{const r=await fetch(API+'/api/train',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({agent:trainAgent,feedback:trainText})});const d=await r.json();
+      setTrainResult(`✅ ${d.name} จำแล้ว (${d.memoryCount} ความจำ)`);setTrainText('');addNotif('เทรนสำเร็จ!');
+      const cid=trainAgent.replace('.json','');const ch=window.characters?.find(c=>c.id===cid);if(ch){ch.showBubble('📚',100);window.addParticle?.(ch.x,ch.y-30,'#ffd54f','+EXP');}
     }catch(e){setTrainResult('❌ '+e.message);}
   };
 
   useEffect(()=>{chatEndRef.current?.scrollIntoView({behavior:'smooth'});},[chatLogs]);
   useEffect(()=>{logEndRef.current?.scrollIntoView({behavior:'smooth'});},[logs]);
-  useEffect(()=>{railLogEndRef.current?.scrollIntoView({behavior:'smooth'});},[teamChat]);
-
-  // poll live character states from the canvas engine for the rail
-  useEffect(()=>{
-    const i=setInterval(()=>{if(window.getAgentStates)setAgentStates(window.getAgentStates());},250);
-    return()=>clearInterval(i);
-  },[]);
-
-  // โหลด analytics ครั้งแรกที่เปิด panel, refresh pending เมื่อเปิด
+  useEffect(()=>{const i=setInterval(()=>{if(window.getAgentStates)setAgentStates(window.getAgentStates());},250);return()=>clearInterval(i);},[]);
   useEffect(()=>{if(panel==='analytics'&&analytics===null)loadAnalytics();},[panel,analytics,loadAnalytics]);
   useEffect(()=>{if(panel==='pending')fetchPending();},[panel,fetchPending]);
+  useEffect(()=>{if(panel==='activity'){loadTeamChat();const i=setInterval(loadTeamChat,8000);return()=>clearInterval(i);}},[panel,loadTeamChat]);
 
-  // ทีมคุยกัน: รับข้อความที่ตัวละครพูด (จาก canvas) มาเก็บเป็น feed
-  const pushChat=useCallback((id,name,color,text)=>{
-    setTeamChat(p=>[...p.slice(-40),{key:Date.now()+Math.random(),name,color,text,t:new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}]);
-  },[]);
-  useEffect(()=>{window.onAgentSay=(id,name,color,text)=>pushChat(id,name,color,text);return()=>{window.onAgentSay=null;};},[pushChat]);
-  // ว่าง = idle เงียบ ไม่พูดมั่ว (ลบ random chatter ออกแล้ว)
-  // โหลดบทคุย "จริง" รอบล่าสุดจาก pipeline มาโชว์ใน rail (ไม่เรียก LLM = ไม่เปลือง token)
   useEffect(()=>{
     const load=async()=>{
-      if(window.gameState&&window.gameState.pipelineRunning)return; // ตอนรันจริงให้ live update คุมเอง
-      try{
-        const r=await fetch(API+'/api/team_chat');const arr=await r.json();
-        if(Array.isArray(arr)&&arr.length){
-          setTeamChat(arr.slice(-40).map((m,i)=>({key:(m.t||'')+'_'+i+'_'+(m.id||''),name:m.name,color:(window.PAL&&window.PAL[m.id])||'#bbb',text:m.text,t:m.t})));
-        }
+      if(window.gameState&&window.gameState.pipelineRunning)return;
+      try{const r=await fetch(API+'/api/team_chat');const arr=await r.json();
+        if(Array.isArray(arr)&&arr.length){const recent=arr.slice(-3);recent.forEach((m,i)=>setTimeout(()=>window.sayLine&&window.sayLine(m.id,m.text,200),i*1200));}
       }catch{}
     };
-    load();const i=setInterval(load,15000);
-    return()=>clearInterval(i);
+    const i=setInterval(load,30000);return()=>clearInterval(i);
   },[]);
 
-  // Expose characters for train animation
-  useEffect(()=>{window.characters=window.characters||[];},[]);
-
-  const activeTokens=tokens.filter(t=>t.status==='active').length;
-  const onlineCount=agentStates.filter(a=>a.state==='working').length;
+  const stateOf=(id)=>agentStates.find(a=>a.id===id);
+  const onlineCount=agentStates.length||TEAM.length;        // present in office
+  const workingNow=agentStates.filter(a=>a.state!=='idle').length; // actively at work
   const pendingCount=pending.reduce((n,p)=>n+(p.items?.length||0),0);
   const STAGES=[{id:'reporter',label:'นักข่าว'},{id:'writer',label:'นักเขียน'},{id:'guardian',label:'ตรวจสอบ'},{id:'graphic',label:'กราฟิก'},{id:'publisher',label:'โพสต์'}];
-  const stateMeta={working:['st-working','ทำงาน'],walking:['st-walking','เดิน'],idle:['st-idle','ว่าง']};
+  const roomCount=(rid)=>TEAM.filter(t=>t.roomId===rid).length;
+  const avgAccuracy=(()=>{const arr=TEAM.map(t=>stats[t.file]).filter(s=>s&&s.runs>0);if(!arr.length)return null;return Math.round(arr.reduce((a,s)=>a+(s.accuracy||0),0)/arr.length);})();
+
+  const NAV=[
+    {key:'office',ic:'🏠',label:'ภาพรวมออฟฟิศ',onClick:()=>setPanel(null)},
+    {key:'run',ic:running?'⏳':'▶️',label:running?'กำลังรัน...':'รันงาน',onClick:runPipeline,disabled:running,cls:'run'},
+    {key:'staff',ic:'👥',label:'รายชื่อทีม',onClick:()=>setPanel('staff')},
+    {key:'chat',ic:'💬',label:'คุยกับ PM',onClick:()=>setPanel('chat')},
+    {key:'train',ic:'🎓',label:'เทรนพนักงาน',onClick:()=>setPanel('train')},
+    {key:'activity',ic:'💬',label:'ทีมคุยกัน',onClick:()=>setPanel('activity')},
+    {key:'pending',ic:'✅',label:'รออนุมัติ',onClick:()=>setPanel('pending'),badge:pendingCount},
+    {key:'analytics',ic:'📊',label:'สถิติเพจ',onClick:()=>setPanel('analytics')},
+    {key:'log',ic:'📋',label:'บันทึกงาน',onClick:()=>setPanel('log')},
+  ];
+
+  const dirRows=TEAM.map((t,i)=>{
+    const st=stateOf(t.id);const stat=stats[t.file];
+    const dot=!st?'idle':(st.state==='working'?'on':st.state==='walking'?'busy':'idle');
+    const col=`var(--c-${t.id})`;
+    return <button key={t.id} className="dir-row" onClick={()=>openProfile(t.id)} title={stat?`Lv.${stat.level} ${stat.title} · ${stat.runs} งาน · เรียนรู้ ${stat.lessons} บทเรียน — คลิกดูโปรไฟล์`:`ดูโปรไฟล์ ${t.name}`}>
+      <span className="dir-num">{String(i+1).padStart(2,'0')}</span>
+      <span className="dir-av" style={{borderColor:col,color:col}}>{t.icon}</span>
+      <span className="dir-meta">
+        <span className="dir-name" style={{color:col}}>{t.name}{stat&&<span className="dir-lv">Lv.{stat.level}</span>}</span>
+        <span className="dir-role">{t.role} · {ROOM_LABELS[t.roomId]}</span>
+      </span>
+      <span className={`dir-dot ${dot}`}/>
+    </button>;
+  });
 
   return <>
-    {/* TOP BAR */}
+    {/* ===== TOP BAR ===== */}
     <div className="top-bar">
-      <div className="title">🎮 PANG NEWS CO.</div>
-      <div className="stat"><span className="label">TIME</span><span className="val">{time}</span></div>
-      <div className="stat"><span className="label">TOKENS</span><span className="val">{loaded?`${activeTokens}/${tokens.length}`:'—'}</span></div>
-      <div className="stat"><span className="label">STAFF</span><span className="val">{loaded?agents.length:'—'}</span></div>
-      <div className="stat">
-        <span className="label">MODE</span>
-        <span className={`status-badge ${postMode==='auto'?'status-auto':'status-running'}`}>
-          {postMode==='auto'?'⚡AUTO':'🔍APPROVE'}
-        </span>
+      <div className="brand">
+        <div className="logo">🎮</div>
+        <div className="bt"><div className="n">PANG NEWS CO.</div><div className="s">โรงงานข่าวเกมอัตโนมัติ</div></div>
       </div>
-      <div className="stat"><span className="label">ENGINE</span><span className="status-badge status-auto">GitHub Actions 24/7</span></div>
-      {running && <div className="stat"><span className="status-badge status-running">⚙️ RUNNING...</span></div>}
+      <div className="tb-spacer"/>
+      <div className="tb-pill"><span className="led"/>ทีมงาน {onlineCount}/{TEAM.length} ออนไลน์{workingNow>0?` · ${workingNow} กำลังทำงาน`:''}</div>
+      <div className="tb-pill"><span className="status-badge status-auto" style={{padding:'1px 6px'}}>GitHub Actions 24/7</span></div>
+      <div className="tb-clock"><div className="d">{today}</div><div className="t">{time}</div></div>
+      <button className="tb-bell" onClick={()=>setPanel('pending')} aria-label="การแจ้งเตือน">🔔{pendingCount>0&&<span className="badge">{pendingCount}</span>}</button>
     </div>
 
-    {/* NOTIFICATIONS */}
-    <div className="notif">
-      {notifs.map(n=><div key={n.id} className="notif-card">{n.msg}</div>)}
+    {/* ===== COMPACT TOOLBAR (mobile) ===== */}
+    <div className="toolbar-c">
+      {NAV.filter(n=>n.key!=='office').map(n=><button key={n.key} className="btn-game" onClick={n.onClick} disabled={n.disabled}>{n.ic} {n.label}{n.badge>0?` (${n.badge})`:''}</button>)}
+      <button className="btn-game" style={{borderColor:'var(--gold)',color:'var(--gold)'}} onClick={toggleMode}>{postMode==='auto'?'⚡ AUTO':'🔍 APPROVE'}</button>
     </div>
 
-    {/* RIGHT DASHBOARD RAIL (desktop ≥900px) */}
-    <aside className="rail" aria-label="แดชบอร์ดสำนักงาน">
-      <div className="rail-sec">
-        <div className="rail-head">👥 ทีมงาน <span className="count">{onlineCount}/{agentStates.length} ทำงาน</span></div>
-        <div className="rail-list">
-          {agentStates.length===0 && <div className="empty-state" style={{padding:'18px 8px'}}><div className="icon">⏳</div><div className="sub">กำลังโหลดทีมงาน…</div></div>}
-          {agentStates.map(a=>{
-            const info=agents.find(x=>x.file===a.id+'.json');
-            const st=stats[a.id+'.json'];
-            const [cls,txt]=stateMeta[a.state]||stateMeta.idle;
-            return <button key={a.id} className="agent-row" onClick={()=>window.pingCharacter&&window.pingCharacter(a.id)} title={st?`Lv.${st.level} ${st.title} · ${st.runs} งาน · เรียนรู้ ${st.lessons} บทเรียน`:`ทักทาย ${a.name} ในออฟฟิศ`}>
-              <span className="agent-dot" style={{background:a.color}}/>
-              <span className="agent-meta">
-                <span className="agent-name" style={{color:a.color}}>{a.name}{st && <span style={{marginLeft:6,fontSize:'9px',color:'#ffd54f',fontWeight:'normal'}}>Lv.{st.level} {st.title}</span>}</span>
-                <span className="agent-sub">{info&&info.model?`${info.provider}/${info.model}`:'ระบบอัตโนมัติ'}{st&&st.runs>0?` · แม่น ${st.accuracy}%`:''}</span>
-                {st && <span style={{display:'block',height:'3px',background:'rgba(255,255,255,0.12)',borderRadius:'2px',marginTop:'3px',overflow:'hidden'}}><span style={{display:'block',height:'3px',width:(st.xpPct||0)+'%',background:a.color,borderRadius:'2px'}}/></span>}
-              </span>
-              <span className={`state-badge ${cls}`}><span className="led"/>{txt}</span>
-            </button>;
-          })}
-        </div>
-      </div>
-      <div className="rail-sec grow">
-        <div className="rail-head">💬 ทีมคุยกัน <span className="count">{teamChat.length}</span></div>
-        <div className="rail-log">
-          {teamChat.length===0 && <div className="empty-state" style={{padding:'18px 8px'}}><div className="icon">💭</div><div className="sub">เดี๋ยวพนักงานจะเริ่มคุยประสานงานกัน…</div></div>}
-          {teamChat.map(m=><div key={m.key} className="chat-line"><span className="chat-who" style={{color:m.color}}>{m.name}</span><span className="chat-txt">{m.text}</span></div>)}
-          <div ref={railLogEndRef}/>
-        </div>
+    {/* ===== LEFT SIDEBAR ===== */}
+    <aside className="sidebar-l" aria-label="เมนูออฟฟิศ">
+      <div className="nav-group-label">เมนูหลัก</div>
+      {NAV.map(n=>{
+        const active=(n.key==='office'&&!panel)||panel===n.key;
+        return <button key={n.key} className={`nav-item ${active?'active':''} ${n.cls||''}`} onClick={n.onClick} disabled={n.disabled}>
+          <span className="ic">{n.ic}</span><span>{n.label}</span>{n.badge>0&&<span className="nb">{n.badge}</span>}
+        </button>;
+      })}
+      <div className="spacer-grow"/>
+      <div className="office-status">
+        <div className="h">สถานะออฟฟิศ</div>
+        <div className="os-row"><span>การทำงาน</span><span className="ok">{running?'กำลังรัน':'เปิด & พร้อม'}</span></div>
+        <div className="os-row"><span>ทีมออนไลน์</span><b>{onlineCount}/{TEAM.length}</b></div>
+        <div className="os-row"><span>รออนุมัติ</span><b>{pendingCount}</b></div>
+        <div className="os-row"><span>ความแม่นเฉลี่ย</span><b>{avgAccuracy!==null?avgAccuracy+'%':'—'}</b></div>
+        <button className="mode-toggle" onClick={toggleMode}>{postMode==='auto'?'⚡ โหมด: โพสต์เลย':'🔍 โหมด: ขออนุมัติ'}</button>
       </div>
     </aside>
 
-    {/* PIPELINE PROGRESS */}
-    <div className="pipeline" role="group" aria-label="ความคืบหน้า pipeline">
+    {/* ===== RIGHT SIDEBAR (TEAM DIRECTORY) ===== */}
+    <aside className="sidebar-r" aria-label="รายชื่อทีมงาน">
+      <div className="dir-head">รายชื่อทีม <span className="c">{TEAM.length} คน</span></div>
+      <div className="dir-list">{dirRows}</div>
+      <div className="dir-foot">
+        <div className="all">✓ ทีมงานทั้งหมดออนไลน์</div>
+        <div className="sys-row"><span className="ck">✓</span> AI พนักงานพร้อมทำงาน</div>
+        <div className="sys-row"><span className="ck">✓</span> Pipeline อัตโนมัติ</div>
+        <div className="sys-row"><span className="ck">✓</span> GitHub Actions 24/7</div>
+        <div className="sys-row"><span className="ck">✓</span> โหมดโพสต์: {postMode==='auto'?'AUTO':'APPROVE'}</div>
+      </div>
+    </aside>
+
+    {/* ===== PIPELINE STRIP (running) ===== */}
+    {running&&<div className="pipeline" role="group" aria-label="ความคืบหน้า pipeline">
       <span className="plabel">PIPELINE</span>
-      {STAGES.map((st,i)=>{
-        const done = pipelineStep===5 || (pipelineStep>=0 && pipelineStep>i);
-        const active = pipelineStep===i;
-        return <div key={st.id} className={`pstep ${done?'done':''} ${active?'active':''}`}>
-          <span className="chip"><span className="n">{done?'✓':i+1}</span>{st.label}</span>
-          {i<STAGES.length-1 && <span className="arrow">▸</span>}
-        </div>;
-      })}
-    </div>
+      {STAGES.map((st,i)=>{const done=pipelineStep===5||(pipelineStep>=0&&pipelineStep>i);const active=pipelineStep===i;
+        return <div key={st.id} className={`pstep ${done?'done':''} ${active?'active':''}`}><span className="chip"><span className="n">{done?'✓':i+1}</span>{st.label}</span>{i<STAGES.length-1&&<span className="arrow">▸</span>}</div>;})}
+    </div>}
 
-    {/* BOTTOM BAR */}
+    {/* ===== BOTTOM BAR (stat cards) ===== */}
     <div className="bottom-bar">
-      <button className="btn-game btn-run" onClick={runPipeline} disabled={running}>
-        {running?'⚙️ Running...':'▶ Run Pipeline'}
-      </button>
-      <button className="btn-game btn-staff" onClick={()=>setPanel('staff')}>👥 Staff</button>
-      <button className="btn-game btn-chat" onClick={()=>setPanel('chat')}>💬 Chat PM</button>
-      <button className="btn-game btn-train" onClick={()=>setPanel('train')}>🎓 Train</button>
-      <button className="btn-game btn-log" onClick={()=>setPanel('log')}>📋 Log</button>
-      <button className="btn-game btn-approve" onClick={()=>setPanel('pending')}>✅ Approve{pendingCount>0 && <span className="badge-count">{pendingCount}</span>}</button>
-      <button className="btn-game btn-analytics" onClick={()=>setPanel('analytics')}>📊 Analytics</button>
-      <button className="btn-game" style={{borderColor:'#ffd54f',color:'#ffd54f'}} onClick={toggleMode}>
-        {postMode==='auto'?'⚡ Auto Post':'🔍 Approve Mode'}
+      <button className="stat-tile" style={{'--accent':'var(--cyan)'}} onClick={()=>setPanel('staff')} title="ดูรายชื่อทีม"><span className="ic2">👥</span><div className="big">{TEAM.length}</div><div className="lb">ทีมงานทั้งหมด</div></button>
+      <button className="stat-tile" style={{'--accent':'var(--c-pm)'}} onClick={()=>openProfile('pm')} title="โปรไฟล์ PM"><span className="ic2">👔</span><div className="big">{roomCount('lead')}</div><div className="lb">บริหาร</div></button>
+      <button className="stat-tile" style={{'--accent':'var(--c-reporter)'}} onClick={()=>openProfile('reporter')} title="โปรไฟล์กองข่าว"><span className="ic2">📰</span><div className="big">{roomCount('news')}</div><div className="lb">กองข่าว</div></button>
+      <button className="stat-tile" style={{'--accent':'var(--c-guardian)'}} onClick={()=>openProfile('guardian')} title="โปรไฟล์ตรวจสอบ"><span className="ic2">🔍</span><div className="big">{roomCount('review')}</div><div className="lb">ตรวจสอบ</div></button>
+      <button className="stat-tile" style={{'--accent':'var(--c-graphic)'}} onClick={()=>openProfile('graphic')} title="โปรไฟล์ครีเอทีฟ"><span className="ic2">🎨</span><div className="big">{roomCount('creative')}</div><div className="lb">ครีเอทีฟ</div></button>
+      <button className="automation" onClick={runPipeline} disabled={running} title={running?'กำลังรัน':'กดเพื่อรันงาน'}>
+        <div className="bot">🤖</div>
+        <div className="at"><div className="t">{running?'กำลังผลิตคอนเทนต์...':'พร้อมทำงาน 24/7'}</div><div className="s">AI × ข่าวเกม × อัตโนมัติ — โพสต์ FB + IG</div></div>
       </button>
     </div>
 
-    {/* PANELS */}
-    {panel==='staff' && <div className="panel-overlay" onClick={e=>{if(e.target===e.currentTarget)setPanel(null)}}>
+    {/* ===== NOTIFICATIONS ===== */}
+    <div className="notif">{notifs.map(n=><div key={n.id} className="notif-card">{n.msg}</div>)}</div>
+
+    {/* ===== PANELS ===== */}
+    {panel==='staff'&&<div className="panel-overlay" onClick={e=>{if(e.target===e.currentTarget)setPanel(null)}}>
       <div className="panel" role="dialog" aria-modal="true" aria-label="รายชื่อพนักงาน" tabIndex={-1}>
-        <div className="panel-title" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          👥 STAFF LIST
-          <button className="btn-game btn-close" onClick={()=>setPanel(null)} aria-label="ปิดหน้าต่าง">✕</button>
-        </div>
+        <div className="panel-title">👥 รายชื่อพนักงาน<button className="btn-game btn-close" onClick={()=>setPanel(null)} aria-label="ปิด">✕</button></div>
         <div className="panel-body">
-          {!loaded && [0,1,2,3].map(i=><div key={i} className="skeleton skel-card"/>)}
-          {loaded && agents.length===0 && <div className="empty-state">
-            <div className="icon">🪑</div>
-            <div className="head">ยังไม่มีพนักงาน</div>
-            <div className="sub">เชื่อมต่อ server ไม่ได้ หรือยังไม่มี config ใน <code>config/agents/</code> — เปิด server แล้วลองใหม่</div>
-          </div>}
-          {loaded && agents.map((a,i)=>(
-            <div key={i} className="emp-card">
-              <div className="emp-avatar" style={{borderColor:Object.values(PAL)[Object.keys(PAL).indexOf(a.file?.replace('.json',''))]||'#888',color:Object.values(PAL)[Object.keys(PAL).indexOf(a.file?.replace('.json',''))]||'#888'}}>
-                {['👔','📰','✍️','🔍','🎨','📱'][i]||'👤'}
-              </div>
+          {!loaded&&[0,1,2,3].map(i=><div key={i} className="skeleton skel-card"/>)}
+          {loaded&&TEAM.map((t,i)=>{const a=agents.find(x=>x.file===t.file)||{};const stat=stats[t.file];const col=`var(--c-${t.id})`;
+            return <div key={t.id} className="emp-card" onClick={()=>openProfile(t.id)} style={{cursor:'pointer'}} title={`ดูโปรไฟล์ ${t.name}`}>
+              <div className="emp-avatar" style={{borderColor:col,color:col}}>{t.icon}</div>
               <div className="emp-info">
-                <div className="emp-name" style={{color:Object.values(PAL)[Object.keys(PAL).indexOf(a.file?.replace('.json',''))]||'#ccc'}}>{a.name||a.file}</div>
-                <div className="emp-role">{a.role||a.description||'-'}</div>
-                <div style={{display:'flex',gap:'8px',marginTop:'4px',fontSize:'10px'}}>
-                  <span style={{color:'var(--muted)'}}>{a.model?`AI: ${a.provider}/${a.model}`:'⚙️ ระบบอัตโนมัติ (ไม่ใช้ LLM)'}</span>
-                  <span style={{color:'#ffd54f'}}>💾 {a.memoryCount} mem</span>
+                <div className="emp-name" style={{color:col}}>{t.name} <span style={{color:'var(--muted)',fontSize:'8px'}}>· {ROOM_LABELS[t.roomId]}</span></div>
+                <div className="emp-role">{t.role}{a.role?` — ${a.role}`:''}</div>
+                <div style={{display:'flex',gap:'8px',marginTop:'4px',fontSize:'10px',flexWrap:'wrap'}}>
+                  <span style={{color:'var(--muted)'}}>{a.model?`AI: ${a.provider}/${a.model}`:'⚙️ อัตโนมัติ'}</span>
+                  <span style={{color:'var(--gold)'}}>💾 {a.memoryCount||0} mem</span>
                 </div>
-                {stats[a.file] && <div style={{marginTop:'5px'}}>
-                  <div style={{display:'flex',gap:'8px',fontSize:'10px',alignItems:'center'}}>
-                    <span style={{color:'#ffd54f',fontWeight:'bold'}}>⚡Lv.{stats[a.file].level} {stats[a.file].title}</span>
-                    {stats[a.file].runs>0 && <span style={{color:'var(--muted)'}}>🎯 แม่น {stats[a.file].accuracy}%</span>}
-                    <span style={{color:'var(--muted)'}}>📚 {stats[a.file].lessons} บทเรียน</span>
+                {stat&&<div style={{marginTop:'5px'}}>
+                  <div style={{display:'flex',gap:'8px',fontSize:'10px',alignItems:'center',flexWrap:'wrap'}}>
+                    <span style={{color:'var(--gold)',fontWeight:'bold'}}>⚡Lv.{stat.level} {stat.title}</span>
+                    {stat.runs>0&&<span style={{color:'var(--muted)'}}>🎯 แม่น {stat.accuracy}%</span>}
+                    <span style={{color:'var(--muted)'}}>📚 {stat.lessons} บทเรียน</span>
                   </div>
-                  <div style={{height:'4px',background:'rgba(255,255,255,0.12)',borderRadius:'2px',marginTop:'3px',overflow:'hidden'}}><div style={{height:'4px',width:(stats[a.file].xpPct||0)+'%',background:'#ffd54f',borderRadius:'2px'}}/></div>
+                  <div style={{height:'4px',background:'rgba(255,255,255,0.12)',borderRadius:'2px',marginTop:'3px',overflow:'hidden'}}><div style={{height:'4px',width:(stat.xpPct||0)+'%',background:col,borderRadius:'2px'}}/></div>
                 </div>}
               </div>
-              <div className="emp-stars">{'⭐'.repeat(Math.min(5,Math.max(1,stats[a.file]?stats[a.file].level:Math.ceil(a.memoryCount/3))))}</div>
-            </div>
-          ))}
+              <div className="emp-stars">{'⭐'.repeat(Math.min(5,Math.max(1,stat?stat.level:Math.ceil((a.memoryCount||1)/3))))}</div>
+            </div>;})}
         </div>
       </div>
     </div>}
 
-    {panel==='chat' && <div className="panel-overlay" onClick={e=>{if(e.target===e.currentTarget)setPanel(null)}}>
+    {panel==='chat'&&<div className="panel-overlay" onClick={e=>{if(e.target===e.currentTarget)setPanel(null)}}>
       <div className="panel" role="dialog" aria-modal="true" aria-label="แชทกับ PM" tabIndex={-1}>
-        <div className="panel-title" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          💬 CHAT WITH PM
-          <button className="btn-game btn-close" onClick={()=>setPanel(null)} aria-label="ปิดหน้าต่าง">✕</button>
-        </div>
+        <div className="panel-title">💬 คุยกับ PM<button className="btn-game btn-close" onClick={()=>setPanel(null)} aria-label="ปิด">✕</button></div>
         <div className="panel-body">
           <div className="chat-box">
-            {chatLogs.map((m,i)=>(
-              <div key={i} className={`chat-msg ${m.from}`}>
-                <strong>{m.from==='pm'?'🤖 PM':m.from==='user'?'👤 You':'⚙️ SYS'}:</strong> {m.text}
-              </div>
-            ))}
-            {chatLoading && <div className="chat-msg pm" style={{opacity:0.5}}>🤖 PM กำลังคิด...</div>}
+            {chatLogs.map((m,i)=><div key={i} className={`chat-msg ${m.from}`}><strong>{m.from==='pm'?'🤖 PM':m.from==='user'?'👤 คุณ':'⚙️ ระบบ'}:</strong> {m.text}</div>)}
+            {chatLoading&&<div className="chat-msg pm" style={{opacity:.5}}>🤖 PM กำลังคิด...</div>}
             <div ref={chatEndRef}/>
           </div>
-          <input className="chat-input" placeholder="พิมพ์ข้อความถึง PM..."
-            value={chatInput} onChange={e=>setChatInput(e.target.value)}
-            onKeyDown={e=>{if(e.key==='Enter')sendChat()}}/>
+          <input className="chat-input" placeholder="พิมพ์ข้อความถึง PM..." value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')sendChat()}}/>
           <div style={{display:'flex',gap:'8px',marginTop:'8px'}}>
-            <button className="btn-game btn-chat" style={{flex:1}} onClick={sendChat} disabled={chatLoading}>💬 ถาม PM (Mistral)</button>
+            <button className="btn-game btn-chat" style={{flex:1}} onClick={sendChat} disabled={chatLoading}>💬 ถาม PM</button>
             <button className="btn-game btn-analytics" style={{flex:1}} onClick={sendToOpenClaw} title="ส่งให้ OpenClaw ตอบใน Discord">📨 ส่งให้ OpenClaw</button>
           </div>
         </div>
       </div>
     </div>}
 
-    {panel==='train' && <div className="panel-overlay" onClick={e=>{if(e.target===e.currentTarget)setPanel(null)}}>
+    {panel==='train'&&<div className="panel-overlay" onClick={e=>{if(e.target===e.currentTarget)setPanel(null)}}>
       <div className="panel" role="dialog" aria-modal="true" aria-label="เทรนพนักงาน" tabIndex={-1}>
-        <div className="panel-title" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          🎓 TRAIN STAFF
-          <button className="btn-game btn-close" onClick={()=>setPanel(null)} aria-label="ปิดหน้าต่าง">✕</button>
-        </div>
+        <div className="panel-title">🎓 เทรนพนักงาน<button className="btn-game btn-close" onClick={()=>setPanel(null)} aria-label="ปิด">✕</button></div>
         <div className="panel-body">
-          <div style={{marginBottom:'8px',fontSize:'12px',color:'#a1887f'}}>เลือกพนักงานที่จะสอน แล้วพิมพ์ feedback</div>
+          <div style={{marginBottom:'8px',fontSize:'12px',color:'var(--muted)'}}>เลือกพนักงานที่จะสอน แล้วพิมพ์ feedback</div>
           <select className="train-select" value={trainAgent} onChange={e=>setTrainAgent(e.target.value)}>
-            <option value="writer.json">✍️ นักเขียน</option>
-            <option value="reporter.json">📰 นักข่าว</option>
-            <option value="graphic.json">🎨 กราฟิก</option>
-            <option value="publisher.json">📱 โพสต์</option>
-            <option value="guardian.json">🔍 ตรวจสอบ</option>
-            <option value="pm.json">👔 PM</option>
+            {TEAM.map(t=><option key={t.file} value={t.file}>{t.icon} {t.name}</option>)}
           </select>
-          <textarea className="train-textarea" placeholder="เช่น: caption สั้นลง ไม่เกิน 3 บรรทัด"
-            value={trainText} onChange={e=>setTrainText(e.target.value)}/>
-          <button className="btn-game btn-train" style={{width:'100%',padding:'10px'}} onClick={doTrain}>🎓 TRAIN!</button>
-          {trainResult && <div style={{marginTop:'8px',fontSize:'12px',color:trainResult.startsWith('✅')?'#4caf50':'#f44336'}}>{trainResult}</div>}
+          <textarea className="train-textarea" placeholder="เช่น: caption สั้นลง ไม่เกิน 3 บรรทัด" value={trainText} onChange={e=>setTrainText(e.target.value)}/>
+          <button className="btn-game btn-train" style={{width:'100%',padding:'11px'}} onClick={doTrain}>🎓 เทรน!</button>
+          {trainResult&&<div style={{marginTop:'8px',fontSize:'12px',color:trainResult.startsWith('✅')?'var(--good)':'var(--bad)'}}>{trainResult}</div>}
         </div>
       </div>
     </div>}
 
-    {panel==='log' && <div className="panel-overlay" onClick={e=>{if(e.target===e.currentTarget)setPanel(null)}}>
+    {panel==='log'&&<div className="panel-overlay" onClick={e=>{if(e.target===e.currentTarget)setPanel(null)}}>
       <div className="panel" role="dialog" aria-modal="true" aria-label="บันทึกกิจกรรม" tabIndex={-1}>
-        <div className="panel-title" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          📋 ACTIVITY LOG
-          <button className="btn-game btn-close" onClick={()=>setPanel(null)} aria-label="ปิดหน้าต่าง">✕</button>
-        </div>
+        <div className="panel-title">📋 บันทึกงาน<button className="btn-game btn-close" onClick={()=>setPanel(null)} aria-label="ปิด">✕</button></div>
         <div className="panel-body">
           <div className="log-box">
-            {logs.length===0 && <div className="empty-state">
-              <div className="icon">📭</div>
-              <div className="head">ยังไม่มี activity</div>
-              <div className="sub">กด <strong>Run Pipeline</strong> เพื่อเริ่มผลิต content แล้ว log จะขึ้นที่นี่</div>
-            </div>}
-            {logs.map((l,i)=>(
-              <div key={i} className={`log-line ${l.err?'err':''}`}>[{l.t}] {l.msg}</div>
-            ))}
+            {logs.length===0&&<div className="empty-state"><div className="icon">📭</div><div className="head">ยังไม่มี activity</div><div className="sub">กด <strong>รันงาน</strong> เพื่อเริ่มผลิต content แล้ว log จะขึ้นที่นี่</div></div>}
+            {logs.map((l,i)=><div key={i} className={`log-line ${l.err?'err':''}`}>[{l.t}] {l.msg}</div>)}
             <div ref={logEndRef}/>
           </div>
         </div>
       </div>
     </div>}
 
-    {panel==='pending' && <div className="panel-overlay" onClick={e=>{if(e.target===e.currentTarget)setPanel(null)}}>
+    {panel==='pending'&&<div className="panel-overlay" onClick={e=>{if(e.target===e.currentTarget)setPanel(null)}}>
       <div className="panel" role="dialog" aria-modal="true" aria-label="โพสต์รออนุมัติ" tabIndex={-1}>
-        <div className="panel-title" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          ✅ รออนุมัติ ({pendingCount})
-          <button className="btn-game btn-close" onClick={()=>setPanel(null)} aria-label="ปิดหน้าต่าง">✕</button>
-        </div>
+        <div className="panel-title">✅ รออนุมัติ ({pendingCount})<button className="btn-game btn-close" onClick={()=>setPanel(null)} aria-label="ปิด">✕</button></div>
         <div className="panel-body">
-          {pendingCount===0 && <div className="empty-state">
-            <div className="icon">🗳️</div>
-            <div className="head">ไม่มีโพสต์รออนุมัติ</div>
-            <div className="sub">โพสต์จะมาที่นี่เมื่ออยู่โหมด <strong>Approve</strong> แล้ว pipeline ทำงาน</div>
-          </div>}
-          {pending.map(grp=>(grp.items||[]).map((it,idx)=>(
-            <div key={grp.id+'_'+idx} className="pending-card">
-              {it.image && <img src={it.image} alt={it.headline} loading="lazy"/>}
-              <div className="pending-head">{it.headline}</div>
-              <div className="pending-cap">{it.caption}</div>
-              {it.sourceName && <div className="pending-src">📰 {it.sourceName}</div>}
-              <div className="pending-actions">
-                <button className="btn-game btn-ok" onClick={()=>approveItem(grp.id,idx)}>✅ อนุมัติ + โพสต์</button>
-                <button className="btn-game btn-no" onClick={()=>rejectItem(grp.id,idx)}>✕ ไม่อนุมัติ</button>
-              </div>
-            </div>
-          )))}
-          {pendingCount>0 && <button className="btn-game btn-no" style={{width:'100%',marginTop:'4px'}} onClick={clearPending}>🗑 ล้างทั้งหมด</button>}
+          {pendingCount===0&&<div className="empty-state"><div className="icon">🗳️</div><div className="head">ไม่มีโพสต์รออนุมัติ</div><div className="sub">โพสต์จะมาที่นี่เมื่ออยู่โหมด <strong>Approve</strong> แล้ว pipeline ทำงาน</div></div>}
+          {pending.map(grp=>(grp.items||[]).map((it,idx)=><div key={grp.id+'_'+idx} className="pending-card">
+            {it.image&&<img src={it.image} alt={it.headline} loading="lazy"/>}
+            <div className="pending-head">{it.headline}</div>
+            <div className="pending-cap">{it.caption}</div>
+            {it.sourceName&&<div className="pending-src">📰 {it.sourceName}</div>}
+            <div className="pending-actions"><button className="btn-game btn-ok" onClick={()=>approveItem(grp.id,idx)}>✅ อนุมัติ + โพสต์</button><button className="btn-game btn-no" onClick={()=>rejectItem(grp.id,idx)}>✕ ไม่อนุมัติ</button></div>
+          </div>))}
+          {pendingCount>0&&<button className="btn-game btn-no" style={{width:'100%',marginTop:'4px'}} onClick={clearPending}>🗑 ล้างทั้งหมด</button>}
         </div>
       </div>
     </div>}
 
-    {panel==='analytics' && <div className="panel-overlay" onClick={e=>{if(e.target===e.currentTarget)setPanel(null)}}>
+    {panel==='analytics'&&<div className="panel-overlay" onClick={e=>{if(e.target===e.currentTarget)setPanel(null)}}>
       <div className="panel" role="dialog" aria-modal="true" aria-label="สถิติ Facebook" tabIndex={-1}>
-        <div className="panel-title" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          📊 ANALYTICS
-          <button className="btn-game btn-close" onClick={()=>setPanel(null)} aria-label="ปิดหน้าต่าง">✕</button>
-        </div>
+        <div className="panel-title">📊 สถิติเพจ<button className="btn-game btn-close" onClick={()=>setPanel(null)} aria-label="ปิด">✕</button></div>
         <div className="panel-body">
-          {analyticsLoading && [0,1,2].map(i=><div key={i} className="skeleton skel-card"/>)}
-          {!analyticsLoading && analytics && analytics.error && <div className="empty-state">
-            <div className="icon">📉</div>
-            <div className="head">ดึงสถิติไม่ได้</div>
-            <div className="sub">{analytics.error}</div>
-          </div>}
-          {!analyticsLoading && Array.isArray(analytics) && analytics.length===0 && <div className="empty-state">
-            <div className="icon">📊</div>
-            <div className="head">ยังไม่มีโพสต์</div>
-            <div className="sub">โพสต์ลง Facebook แล้วสถิติจะขึ้นที่นี่</div>
-          </div>}
-          {!analyticsLoading && Array.isArray(analytics) && analytics.map(p=>(
-            <div key={p.id} className="stat-card">
-              {p.image && <img src={p.image} alt="" loading="lazy"/>}
-              <div className="sc-body">
-                <div className="stat-msg">{p.message||'(ไม่มีข้อความ)'}</div>
-                <div className="stat-row">
-                  <span><b>{p.likes}</b>👍</span>
-                  <span><b>{p.comments}</b>💬</span>
-                  <span><b>{p.shares}</b>🔁</span>
-                  <span><b>{p.reach}</b>👁</span>
-                </div>
-                {p.permalink_url && <a className="sc-link" href={p.permalink_url} target="_blank" rel="noopener noreferrer">ดูโพสต์ ↗</a>}
+          {analyticsLoading&&[0,1,2].map(i=><div key={i} className="skeleton skel-card"/>)}
+          {!analyticsLoading&&analytics&&analytics.error&&<div className="empty-state"><div className="icon">📉</div><div className="head">ดึงสถิติไม่ได้</div><div className="sub">{analytics.error}</div></div>}
+          {!analyticsLoading&&Array.isArray(analytics)&&analytics.length===0&&<div className="empty-state"><div className="icon">📊</div><div className="head">ยังไม่มีโพสต์</div><div className="sub">โพสต์ลง Facebook แล้วสถิติจะขึ้นที่นี่</div></div>}
+          {!analyticsLoading&&Array.isArray(analytics)&&analytics.map(p=><div key={p.id} className="stat-card">
+            {p.image&&<img src={p.image} alt="" loading="lazy"/>}
+            <div className="sc-body"><div className="stat-msg">{p.message||'(ไม่มีข้อความ)'}</div>
+              <div className="stat-row"><span><b>{p.likes}</b>👍</span><span><b>{p.comments}</b>💬</span><span><b>{p.shares}</b>🔁</span><span><b>{p.reach}</b>👁</span></div>
+              {p.permalink_url&&<a className="sc-link" href={p.permalink_url} target="_blank" rel="noopener noreferrer">ดูโพสต์ ↗</a>}
+            </div>
+          </div>)}
+        </div>
+      </div>
+    </div>}
+
+    {panel==='profile'&&(()=>{const t=TEAM.find(x=>x.id===profileId);if(!t)return null;const stat=stats[t.file];const col=`var(--c-${t.id})`;
+      return <div className="panel-overlay" onClick={e=>{if(e.target===e.currentTarget)setPanel(null)}}>
+        <div className="panel" role="dialog" aria-modal="true" aria-label={`โปรไฟล์ ${t.name}`} tabIndex={-1}>
+          <div className="panel-title">{t.icon} โปรไฟล์พนักงาน<button className="btn-game btn-close" onClick={()=>setPanel(null)} aria-label="ปิด">✕</button></div>
+          <div className="panel-body">
+            <div className="prof-top">
+              <div className="prof-av" style={{borderColor:col,color:col}}>{t.icon}</div>
+              <div className="prof-id">
+                <div className="prof-name" style={{color:col}}>{t.name}</div>
+                <div className="prof-sub">{t.role} · {ROOM_LABELS[t.roomId]}</div>
+                {stat&&<div className="prof-lv">⚡ Lv.{stat.level} {stat.title}</div>}
               </div>
             </div>
-          ))}
+            {stat?<>
+              <div className="prof-xpwrap">
+                <div className="prof-xplabel"><span>EXP</span><span>{stat.xp} XP · ไปเลเวลถัดไป {stat.xpPct}%</span></div>
+                <div className="prof-xpbar"><div style={{width:(stat.xpPct||0)+'%',background:col}}/></div>
+              </div>
+              <div className="prof-grid">
+                <div className="prof-stat"><div className="v">{stat.runs}</div><div className="k">งานทั้งหมด</div></div>
+                <div className="prof-stat"><div className="v" style={{color:'var(--good)'}}>{stat.accuracy}%</div><div className="k">ความแม่น</div></div>
+                <div className="prof-stat"><div className="v" style={{color:'var(--warn)'}}>{stat.retries}</div><div className="k">แก้งาน</div></div>
+                <div className="prof-stat"><div className="v" style={{color:'var(--gold)'}}>{stat.lessons}</div><div className="k">บทเรียน</div></div>
+              </div>
+            </>:<div className="empty-state" style={{padding:'10px 0 14px'}}><div className="sub">พนักงานคนนี้เป็นระบบอัตโนมัติ (ไม่ใช้ LLM) — ยังไม่มีสถิติการเรียนรู้</div></div>}
+            <div className="sect-label">📚 บทเรียนที่เรียนรู้ <span className="c">{profileMem.length} รายการ</span></div>
+            {profileLoading&&[0,1].map(i=><div key={i} className="skeleton skel-card"/>)}
+            {!profileLoading&&profileMem.length===0&&<div className="empty-state"><div className="icon">🌱</div><div className="head">ยังไม่มีบทเรียน</div><div className="sub">เมื่อ PM/ตรวจสอบ ให้ feedback ระหว่างทำงานจริง บทเรียนจะถูกบันทึกที่นี่</div></div>}
+            {!profileLoading&&profileMem.map((m,i)=><div key={i} className="lesson">
+              <div className="lesson-meta"><span className="from">🎓 {asText(m.from)}</span><span>{(()=>{try{return new Date(m.date).toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'2-digit'})}catch{return ''}})()}</span></div>
+              <div className="lesson-txt">{asText(m.feedback)}</div>
+            </div>)}
+            <div className="prof-actions">
+              <button className="btn-game btn-train" onClick={()=>{setTrainAgent(t.file);setPanel('train');}}>🎓 เทรนคนนี้</button>
+              <button className="btn-game btn-chat" onClick={()=>window.pingCharacter&&window.pingCharacter(t.id)}>👋 ทักทาย</button>
+            </div>
+          </div>
+        </div>
+      </div>;})()}
+
+    {panel==='activity'&&<div className="panel-overlay" onClick={e=>{if(e.target===e.currentTarget)setPanel(null)}}>
+      <div className="panel" role="dialog" aria-modal="true" aria-label="ทีมคุยกัน" tabIndex={-1}>
+        <div className="panel-title">💬 ทีมคุยกัน<button className="btn-game btn-close" onClick={()=>setPanel(null)} aria-label="ปิด">✕</button></div>
+        <div className="panel-body">
+          <div style={{fontSize:'12px',color:'var(--muted)',marginBottom:'10px'}}>บทประสานงานจริงจากงานล่าสุด — owner → PM → พนักงาน (อัปเดตทุก 8 วินาที)</div>
+          <div className="feed">
+            {teamChat.length===0&&<div className="empty-state"><div className="icon">💭</div><div className="head">ยังไม่มีบทสนทนา</div><div className="sub">กด <strong>รันงาน</strong> แล้วทีมจะเริ่มประสานงานกันจริง</div></div>}
+            {teamChat.map((m,i)=>{const col=(window.PAL&&window.PAL[m.id])||'#9fb0cc';const tm=TEAM.find(x=>x.id===m.id);
+              return <div key={i} className="feed-line">
+                <div className="feed-av" style={{borderColor:col}}>{tm?tm.icon:'💬'}</div>
+                <div className="feed-body"><div className="feed-who" style={{color:col}}>{asText(m.name)}</div><div className="feed-txt">{asText(m.text)}</div></div>
+                <div className="feed-t">{m.t}</div>
+              </div>;})}
+          </div>
         </div>
       </div>
     </div>}
   </>;
 }
 
-// Expose PAL to React
-window.PAL=PAL;
+window.PAL={pm:'#ff5a52',reporter:'#3aa0ff',writer:'#46c46a',guardian:'#b06cff',graphic:'#ff9838',publisher:'#ffd23f'};
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>

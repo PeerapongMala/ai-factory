@@ -1,0 +1,4 @@
+Character sprites: "MetroCity" modular pixel-art characters
+Source: github.com/thx0701/openclaw-virtual-office (MIT) — assets/office/
+Free for personal & commercial use (credit appreciated).
+Used in Pang News dashboard for the 6 AI-employee characters.
