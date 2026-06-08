@@ -40,7 +40,7 @@ canvas#office{position:fixed;top:0;left:0;width:100%;height:100%;image-rendering
 .tb-bell{position:relative;flex-shrink:0;width:42px;height:42px;border-radius:9px;background:var(--panel-2);border:1px solid var(--line);
   display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;transition:all var(--dur-fast)}
 .tb-bell:hover{border-color:var(--gold);transform:translateY(-1px)}
-.tb-bell .badge{position:absolute;top:-6px;right:-6px;background:var(--bad);color:#fff;border-radius:9px;
+.tb-bell .badge{position:absolute;top:-6px;right:-6px;background:#d32f2f;color:#fff;border-radius:9px;
   min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;font-family:'Press Start 2P',monospace;padding:0 4px}
 
 /* ===================== LEFT SIDEBAR ===================== */
@@ -55,7 +55,7 @@ canvas#office{position:fixed;top:0;left:0;width:100%;height:100%;image-rendering
 .nav-item.active{background:linear-gradient(90deg,#16335a,#102544);border-color:var(--cyan);color:#fff;box-shadow:inset 3px 0 0 var(--cyan)}
 .nav-item:disabled{opacity:.55;cursor:not-allowed}
 .nav-item .ic{width:20px;text-align:center;font-size:15px}
-.nav-item .nb{margin-left:auto;background:var(--bad);color:#fff;border-radius:8px;font-size:9px;
+.nav-item .nb{margin-left:auto;background:#d32f2f;color:#fff;border-radius:8px;font-size:9px;
   font-family:'Press Start 2P',monospace;padding:2px 6px;min-width:18px;text-align:center}
 .nav-item.run{border-color:#1f5e3a;background:#10331f;color:#7be6a0}
 .nav-item.run:hover:not(:disabled){background:#164a2a;border-color:var(--good)}
@@ -209,7 +209,7 @@ canvas#office{position:fixed;top:0;left:0;width:100%;height:100%;image-rendering
 .pending-card{background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:10px;margin-bottom:10px}
 .pending-card img{width:100%;max-height:170px;object-fit:cover;border-radius:7px;border:1px solid var(--line);margin-bottom:8px;background:var(--panel-3)}
 .pending-head{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--gold);line-height:1.6;margin-bottom:6px}
-.pending-cap{font-size:12px;line-height:1.5;color:var(--ink-dim);white-space:pre-wrap;max-height:120px;overflow-y:auto;margin-bottom:6px}
+.pending-cap{font-size:12px;line-height:1.5;color:var(--ink-dim);white-space:pre-wrap;margin-bottom:6px}
 .pending-src{font-size:10px;color:var(--muted);margin-bottom:8px}
 .pending-actions{display:flex;gap:8px}.pending-actions .btn-game{flex:1;font-size:8px;padding:10px;min-height:44px}
 .stat-card{background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:10px;margin-bottom:8px;display:flex;gap:10px}

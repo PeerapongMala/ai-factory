@@ -43,7 +43,7 @@ let prefersReduced=reduceMotionMQ.matches;
 reduceMotionMQ.addEventListener&&reduceMotionMQ.addEventListener('change',e=>{prefersReduced=e.matches;});
 
 function chromeFor(w){
-  if(w<1180) return {left:0,right:0,top:108,bottom:104};
+  if(w<1180) return {left:0,right:0,top:122,bottom:104};
   return {left:210,right:248,top:60,bottom:104};
 }
 let W,H,scale=1,OX=0,OY=0,CH={left:0,right:0,top:60,bottom:104};
@@ -58,7 +58,9 @@ function resize(){
   const availH=Math.max(120,H-CH.top-CH.bottom);
   scale=Math.min(availW/GW,availH/GH);
   OX=CH.left+(availW-GW*scale)/2;
-  OY=CH.top+(availH-GH*scale)/2;
+  const slackV=availH-GH*scale;
+  // portrait/narrow: anchor near top so the office sits under the toolbar instead of floating with big gaps
+  OY=CH.top+(W<1180?Math.min(slackV/2,12):slackV/2);
 }
 window.addEventListener('resize',resize);resize();
 
@@ -127,6 +129,16 @@ window.TEAM=TEAM;
 window.pingCharacter=(id)=>{const c=charById[id];if(c)c.ping();};
 window.getAgentStates=()=>characters.map(c=>({id:c.id,name:c.name,color:c.color,state:c.state,working:c.working}));
 window.sayLine=(id,text,dur)=>{const c=charById[id];if(!c)return;c.say(text,dur);if(window.onAgentSay)window.onAgentSay(id,c.name,c.color,text);};
+
+// click / hover a character on the canvas → open their profile (core loop: manage your staff)
+function charAtScreen(cx,cy){
+  const rect=canvas.getBoundingClientRect();
+  const ox=(cx-rect.left-OX)/scale, oy=(cy-rect.top-OY)/scale;
+  for(const c of characters){ if(Math.abs(ox-c.x)<18 && oy>c.y-46 && oy<c.y+8) return c; }
+  return null;
+}
+canvas.addEventListener('click',e=>{const c=charAtScreen(e.clientX,e.clientY);if(c&&window.openProfile)window.openProfile(c.id);});
+canvas.addEventListener('mousemove',e=>{canvas.style.cursor=charAtScreen(e.clientX,e.clientY)?'pointer':'default';});
 
 const AGENT_SPRITE={pm:'boss',reporter:'listing',writer:'dev',guardian:'tech',graphic:'marketing',publisher:'admin'};
 const DIR_NAME=['down','left','right','up'];

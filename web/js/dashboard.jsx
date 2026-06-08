@@ -127,6 +127,7 @@ function App(){
   useEffect(()=>{chatEndRef.current?.scrollIntoView({behavior:'smooth'});},[chatLogs]);
   useEffect(()=>{logEndRef.current?.scrollIntoView({behavior:'smooth'});},[logs]);
   useEffect(()=>{const i=setInterval(()=>{if(window.getAgentStates)setAgentStates(window.getAgentStates());},250);return()=>clearInterval(i);},[]);
+  useEffect(()=>{window.openProfile=openProfile;},[openProfile]);
   useEffect(()=>{if(panel==='analytics'&&analytics===null)loadAnalytics();},[panel,analytics,loadAnalytics]);
   useEffect(()=>{if(panel==='pending')fetchPending();},[panel,fetchPending]);
   useEffect(()=>{if(panel==='activity'){loadTeamChat();const i=setInterval(loadTeamChat,8000);return()=>clearInterval(i);}},[panel,loadTeamChat]);
