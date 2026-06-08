@@ -33,6 +33,7 @@ function App(){
   const [agentStates,setAgentStates]=useState([]);
   const [pipelineStep,setPipelineStep]=useState(-1);
   const [pending,setPending]=useState([]);
+  const [acting,setActing]=useState(null);
   const [analytics,setAnalytics]=useState(null);
   const [analyticsLoading,setAnalyticsLoading]=useState(false);
   const [profileId,setProfileId]=useState(null);
@@ -77,9 +78,9 @@ function App(){
     }catch{}finally{setLoaded(true);}
   },[]);
   const fetchPending=useCallback(async()=>{try{const r=await fetch(API+'/api/pending');const d=await r.json();setPending(Array.isArray(d)?d:[]);}catch{}},[]);
-  const approveItem=async(id,item)=>{try{await fetch(API+`/api/pending/${id}/approve?item=${item}`,{method:'POST'});addNotif('อนุมัติแล้ว — กำลังโพสต์ ✅');addLog(`✅ อนุมัติโพสต์ ${id}#${item}`);}catch(e){addNotif('อนุมัติไม่ได้');}fetchPending();};
-  const rejectItem=async(id,item)=>{try{await fetch(API+`/api/pending/${id}/reject?item=${item}`,{method:'POST'});addNotif('ไม่อนุมัติ ✕');addLog(`✕ ปฏิเสธโพสต์ ${id}#${item}`);}catch(e){addNotif('ทำไม่ได้');}fetchPending();};
-  const clearPending=async()=>{try{await fetch(API+'/api/pending/clear',{method:'POST'});addNotif('ล้าง pending แล้ว');}catch{}fetchPending();};
+  const approveItem=async(id,item)=>{if(acting)return;setActing(id+'_'+item);try{const r=await fetch(API+`/api/pending/${id}/approve?item=${item}`,{method:'POST'});const d=await r.json().catch(()=>({}));if(r.ok&&d.status!=='FAILED'&&!d.error){addNotif('โพสต์สำเร็จ ✅');addLog(`✅ โพสต์แล้ว ${id}#${item}`);}else{const m=asText(d.error)||asText(d.msg)||('HTTP '+r.status);addNotif('โพสต์ไม่สำเร็จ ❌ '+m);addLog(`❌ โพสต์ล้มเหลว ${id}#${item}: ${m}`,true);}}catch(e){addNotif('โพสต์ไม่สำเร็จ ❌ '+asText(e.message));addLog('❌ approve error: '+asText(e.message),true);}finally{setActing(null);fetchPending();}};
+  const rejectItem=async(id,item)=>{if(acting)return;setActing(id+'_'+item);try{const r=await fetch(API+`/api/pending/${id}/reject?item=${item}`,{method:'POST'});if(r.ok){addNotif('ไม่อนุมัติ — ลบแล้ว ✕');addLog(`✕ ปฏิเสธโพสต์ ${id}#${item}`);}else{addNotif('ลบไม่สำเร็จ ❌');}}catch(e){addNotif('ลบไม่สำเร็จ ❌');}finally{setActing(null);fetchPending();}};
+  const clearPending=async()=>{if(acting)return;try{await fetch(API+'/api/pending/clear',{method:'POST'});addNotif('ล้าง pending แล้ว');}catch{}fetchPending();};
   const loadAnalytics=useCallback(async()=>{setAnalyticsLoading(true);try{const r=await fetch(API+'/api/analytics');const d=await r.json();setAnalytics(d);}catch(e){setAnalytics({error:e.message});}setAnalyticsLoading(false);},[]);
   const sendToOpenClaw=async()=>{const msg=chatInput.trim();if(!msg)return;setChatInput('');setChatLogs(p=>[...p,{from:'user',text:msg},{from:'sys',text:'📨 ส่งให้ PM (OpenClaw) ใน Discord แล้ว — รอคำตอบในช่อง Discord'}]);try{await fetch(API+'/api/chat/discord',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})});}catch(e){setChatLogs(p=>[...p,{from:'sys',text:'ส่งไม่ได้: '+e.message}]);}};
   // open an employee profile: ping the character + load their REAL learned lessons
@@ -332,15 +333,15 @@ function App(){
       <div className="panel" role="dialog" aria-modal="true" aria-label="โพสต์รออนุมัติ" tabIndex={-1}>
         <div className="panel-title">✅ รออนุมัติ ({pendingCount})<button className="btn-game btn-close" onClick={()=>setPanel(null)} aria-label="ปิด">✕</button></div>
         <div className="panel-body">
-          {pendingCount===0&&<div className="empty-state"><div className="icon">🗳️</div><div className="head">ไม่มีโพสต์รออนุมัติ</div><div className="sub">โพสต์จะมาที่นี่เมื่ออยู่โหมด <strong>Approve</strong> แล้ว pipeline ทำงาน</div></div>}
-          {pending.map(grp=>(grp.items||[]).map((it,idx)=><div key={grp.id+'_'+idx} className="pending-card">
+          {pendingCount===0&&<div className="empty-state"><div className="icon">🗳️</div><div className="head">ยังไม่มีโพสต์รออนุมัติ</div><div className="sub">เปิดโหมด <strong>Approve</strong> แล้วกด <strong>รันงาน</strong> ในเครื่อง โพสต์จะมารอให้กดอนุมัติที่นี่<br/>(งานที่รันบน GitHub Actions จะโพสต์อัตโนมัติ ไม่เข้าคิวนี้)</div></div>}
+          {pending.map(grp=>(grp.items||[]).map((it,idx)=>{const busy=acting===grp.id+'_'+idx;return <div key={grp.id+'_'+idx} className="pending-card">
             {it.image&&<img src={it.image} alt={it.headline} loading="lazy"/>}
             <div className="pending-head">{it.headline}</div>
             <div className="pending-cap">{it.caption}</div>
             {it.sourceName&&<div className="pending-src">📰 {it.sourceName}</div>}
-            <div className="pending-actions"><button className="btn-game btn-ok" onClick={()=>approveItem(grp.id,idx)}>✅ อนุมัติ + โพสต์</button><button className="btn-game btn-no" onClick={()=>rejectItem(grp.id,idx)}>✕ ไม่อนุมัติ</button></div>
-          </div>))}
-          {pendingCount>0&&<button className="btn-game btn-no" style={{width:'100%',marginTop:'4px'}} onClick={clearPending}>🗑 ล้างทั้งหมด</button>}
+            <div className="pending-actions"><button className={"btn-game btn-ok"+(busy?' loading':'')} disabled={busy} onClick={()=>approveItem(grp.id,idx)}>{busy?'⏳ กำลังโพสต์…':'✅ อนุมัติ + โพสต์'}</button><button className="btn-game btn-no" disabled={busy} onClick={()=>rejectItem(grp.id,idx)}>✕ ไม่อนุมัติ</button></div>
+          </div>;}))}
+          {pendingCount>0&&<button className="btn-game btn-no" style={{width:'100%',marginTop:'4px'}} disabled={!!acting} onClick={clearPending}>🗑 ล้างทั้งหมด</button>}
         </div>
       </div>
     </div>}
