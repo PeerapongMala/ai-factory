@@ -1,8 +1,0 @@
-[phases.setup]
-aptPkgs = ["fonts-thai-tlwg", "fonts-noto-cjk", "fonts-noto-color-emoji", "fontconfig", "libfontconfig1", "libpango1.0-dev"]
-
-[phases.build]
-cmds = ["fc-cache -fv || true"]
-
-[start]
-cmd = "fc-cache -fv 2>/dev/null; fc-list :lang=th | head -3; bun run scripts/server.ts"
