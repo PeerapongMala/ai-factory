@@ -16,7 +16,7 @@ export interface PMVerdict { action: "approve" | "revise" | "train" | "skip"; re
 // ---- provider configs (ฟรี + opt-in OpenClaw) ----
 function writerCfg(): { cfg: ProviderConfig; system: string; gen: any } {
   const a = loadAgent("writer.json");
-  const cfg = buildProviderConfig(a, { provider: "gemini", model: "gemini-2.0-flash" });
+  const cfg = buildProviderConfig(a, { provider: "gemini", model: "gemini-2.5-flash" });
   const system = (a.systemPrompt || "") + getMemoryPrompt("writer.json") + getLessonsPrompt("writer.json");
   return { cfg, system, gen: a.generationConfig || {} };
 }

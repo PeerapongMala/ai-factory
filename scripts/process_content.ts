@@ -7,7 +7,7 @@ const agent = loadAgent("writer.json");
 const memoryPrompt = getMemoryPrompt("writer.json");
 
 // 2. สร้าง provider config จาก agent JSON (cloud โดยปริยาย; OpenClaw เมื่อ USE_OPENCLAW=1)
-const providerConfig: ProviderConfig = buildProviderConfig(agent, { provider: "gemini", model: "gemini-2.0-flash" });
+const providerConfig: ProviderConfig = buildProviderConfig(agent, { provider: "gemini", model: "gemini-2.5-flash" });
 
 const systemPrompt = (agent.systemPrompt || "") + memoryPrompt;
 

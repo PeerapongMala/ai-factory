@@ -4,3 +4,11 @@ node_modules/
 assets/audio/
 /tmp/
 logs/
+
+# Local Claude Code settings (may contain tokens) — never commit
+.claude/settings.local.json
+
+# Local design / verification artifacts
+.playwright-mcp/
+polish/
+assets/iso/
