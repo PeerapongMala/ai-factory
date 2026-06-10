@@ -22,11 +22,15 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      # rolling key — key ตายตัว save ซ้ำไม่ได้ (cache immutable) ทำให้ตัวกันโพสต์ซ้ำไม่เคยอัปเดต
       - name: Restore processed hashes from cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: logs/processed_hashes.json
-          key: processed-hashes
+          key: processed-hashes-${{ github.run_id }}
+          restore-keys: |
+            processed-hashes-
+            processed-hashes
 
       # พัฒนาการพนักงาน (level/xp) + บทเรียนสะสม — rolling key เพื่อให้ "อัปเดตได้จริง" ทุกรอบ
       - name: Restore learning state from cache
@@ -52,10 +56,12 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
 
       - name: Save processed hashes to cache
+        if: always()
+        continue-on-error: true
         uses: actions/cache/save@v4
         with:
           path: logs/processed_hashes.json
-          key: processed-hashes
+          key: processed-hashes-${{ github.run_id }}
 
       # บันทึกพัฒนาการ + บทเรียนกลับเข้า cache (rolling key) → พนักงานเก่งขึ้นข้ามรอบ 24/7
       - name: Save learning state to cache

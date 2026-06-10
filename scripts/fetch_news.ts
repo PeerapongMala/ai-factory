@@ -4,8 +4,8 @@
  * Runtime: Bun
  */
 import { createHash } from "crypto";
-import { readFileSync, writeFileSync, existsSync } from "fs";
-import { join } from "path";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { join, dirname } from "path";
 
 interface NewsItem {
   title: string;
@@ -47,6 +47,7 @@ function getProcessedHashes(): Set<string> {
 
 function saveProcessedHashes(hashSet: Set<string>) {
   const arr = Array.from(hashSet).slice(-1000); // Keep last 1000 logs
+  mkdirSync(dirname(HASH_LOG_PATH), { recursive: true }); // runner สด ๆ ไม่มี logs/ → ENOENT
   writeFileSync(HASH_LOG_PATH, JSON.stringify(arr, null, 2));
 }
 

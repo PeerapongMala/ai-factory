@@ -86,6 +86,13 @@ async function run() {
           caption = `${item.source_article?.title || ""}\n\n#เกมปังv2 #panggame`;
         }
 
+        // ⛔ guard ชั้นสุดท้าย: caption ไม่มีเนื้อหาจริง → ข้าม ไม่โพสต์ (กันโพสต์เหลือแต่ CTA)
+        if (caption.replace(/["'\s]/g, "").length < 30) {
+          console.error(`[Post] ข้าม item — caption ว่าง/สั้นเกิน (${caption.length} chars): "${caption.slice(0, 50)}"`);
+          results.push({ ...item, distribution: { status: "SKIPPED", reason: "empty caption" } });
+          continue;
+        }
+
         // === เพิ่มข้อความทิ้งท้ายเพจถ้าไม่มี ===
         const CTA_TEXT = "ติดตามเพจใหม่เพื่อรับข่าวสารเพิ่มเติมได้ที่นี่ เกมปังv2";
         if (!caption.includes("ติดตามเพจ") && !caption.includes("เกมปังv2")) {

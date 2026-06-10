@@ -53,7 +53,9 @@ async function callGemini(config: ProviderConfig, req: AIRequest): Promise<AIRes
       maxOutputTokens: req.maxTokens || 1024,
       temperature: req.temperature || 0.85,
       ...(req.jsonMode ? { responseMimeType: "application/json" } : {}),
-    },
+      // gemini-2.5: thinking เปิด default และกินโควต้า maxOutputTokens จน JSON ขาดกลางคำ → ปิดทิ้ง
+      ...(String(config.model).includes("2.5") ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+    } as any,
   });
 
   const result = await model.generateContent(req.prompt);

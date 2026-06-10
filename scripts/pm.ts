@@ -285,13 +285,22 @@ async function pmRun() {
       }
 
       // revise/train — ถ้าครบรอบแล้ว → เทรนถาวร + ใช้ตัวที่ดีที่สุด (ไม่ทิ้งข่าว)
+      // ⛔ ship guard: caption ว่าง/สั้นผิดปกติ = ของเสียจริง ห้ามฝืนโพสต์ (เคยหลุดโพสต์เหลือแต่ CTA เบิ้ล 2 อัน)
       if (attempt >= MAX_REVISE) {
         const lesson = verdict.feedback || issueText;
         train("writer.json", lesson, "PM (AI)");
         addLesson("writer.json", lesson, "PM (AI)");
         gainedLesson = true;
-        teamSay("pm", "PM", "แก้หลายรอบแล้ว บันทึกบทเรียนให้นักเขียน คราวหน้าจะเก่งขึ้น");
-        approved = true;
+        const capText = typeof script.caption === "string" ? script.caption
+          : Object.values(script.caption || {}).flat().map(String).join(" ");
+        const capUsable = capText.replace(/["'\s]/g, "").length >= 30;
+        if (capUsable) {
+          teamSay("pm", "PM", "แก้หลายรอบแล้ว บันทึกบทเรียนให้นักเขียน คราวหน้าจะเก่งขึ้น");
+          approved = true;
+        } else {
+          teamSay("pm", "PM", "caption ยังว่าง/ใช้ไม่ได้จริง ขอตัดข่าวนี้ทิ้ง รอบหน้าค่อยเอาใหม่");
+          approved = false;
+        }
         break;
       }
 

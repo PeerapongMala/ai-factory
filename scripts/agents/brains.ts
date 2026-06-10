@@ -53,7 +53,9 @@ function coerceText(v: any): string {
 
 function asScript(parsed: any, fallbackHeadline = ""): Script {
   const mood = parsed?.mood === "fail" ? "fail" : "good";
-  const caption = typeof parsed?.caption === "string" ? parsed.caption : JSON.stringify(parsed?.caption ?? "");
+  // parse ไม่ได้/ไม่มี caption → คืน "" จริงๆ (เดิม JSON.stringify("") ได้ '""' ทำให้เช็คว่างไม่เจอ)
+  const caption = typeof parsed?.caption === "string" ? parsed.caption
+    : (parsed?.caption ? JSON.stringify(parsed.caption) : "");
   return { mood, headline: String(parsed?.headline || fallbackHeadline || "").slice(0, 80), caption };
 }
 
