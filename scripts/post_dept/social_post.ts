@@ -4,10 +4,32 @@ import { stampSticker, uploadImage } from "./stamp_sticker";
 const AYRSHARE_API_KEY = process.env.AYRSHARE_API_KEY;
 const FB_PAGE_TOKEN = process.env.FB_PAGE_TOKEN;
 const FB_PAGE_ID = process.env.FB_PAGE_ID;
+const IG_USER_ID = process.env.IG_USER_ID; // Instagram Business account id (ผูกกับเพจ) — มีแล้วจะโพสต์ IG ตรงด้วย
 
 if (!AYRSHARE_API_KEY && !FB_PAGE_TOKEN) {
   console.error(JSON.stringify({ status: "FAILED", role: "Output(Distribution)", error: "Missing AYRSHARE_API_KEY and FB_PAGE_TOKEN — ต้องมีอย่างน้อย 1 อย่าง" }, null, 2));
   process.exit(1);
+}
+
+// === Instagram Graph API (ตรง ไม่ผ่าน Ayrshare = ไม่มีลายน้ำ) ===
+// ขั้นตอนมาตรฐาน 2 จังหวะ: สร้าง media container → publish
+async function postViaInstagram(caption: string, imageUrl: string): Promise<any> {
+  if (!FB_PAGE_TOKEN || !IG_USER_ID) throw new Error("Missing FB_PAGE_TOKEN or IG_USER_ID");
+  const mediaRes = await fetch(`https://graph.facebook.com/v19.0/${IG_USER_ID}/media`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ image_url: imageUrl, caption, access_token: FB_PAGE_TOKEN }),
+  });
+  const media = await mediaRes.json();
+  if (!mediaRes.ok) throw new Error(`IG media Error: ${JSON.stringify(media)}`);
+  const pubRes = await fetch(`https://graph.facebook.com/v19.0/${IG_USER_ID}/media_publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ creation_id: media.id, access_token: FB_PAGE_TOKEN }),
+  });
+  const pub = await pubRes.json();
+  if (!pubRes.ok) throw new Error(`IG publish Error: ${JSON.stringify(pub)}`);
+  return pub;
 }
 
 // === Facebook Graph API (สำรอง) ===
@@ -85,6 +107,15 @@ async function run() {
         } else {
           caption = `${item.source_article?.title || ""}\n\n#เกมปังv2 #panggame`;
         }
+
+        // 🧹 sanitize: ล้างสัญลักษณ์ที่ทำให้อ่านขัด — '#' กลางประโยค, '[News]', markdown '**', bullet '*'
+        caption = caption
+          .replace(/\[News\]\s*/gi, "")
+          .replace(/\*\*/g, "")
+          .replace(/^\s*\*\s+/gm, "- ")
+          .replace(/#/g, "")
+          .replace(/[ \t]{2,}/g, " ")
+          .trim();
 
         // ⛔ guard ชั้นสุดท้าย: caption ไม่มีเนื้อหาจริง → ข้าม ไม่โพสต์ (กันโพสต์เหลือแต่ CTA)
         if (caption.replace(/["'\s]/g, "").length < 30) {
@@ -168,20 +199,43 @@ async function run() {
             }
         }
 
+        // autoHashtag ปิดถาวร — Ayrshare เคยยัด # กลางประโยค (แม้แต่ใน CTA) ทำให้อ่านขัดมาก
         const payload: any = {
             post: caption,
             platforms: finalImageUrl ? ["facebook", "instagram"] : ["facebook"],
-            autoHashtag: true,
         };
         if (finalImageUrl) {
             payload.mediaUrls = [finalImageUrl];
         }
 
-        // 3. โพสต์: Ayrshare (หลัก) → Facebook API (สำรอง)
+        // 3. โพสต์: FB/IG Graph API ตรง (หลัก — ไม่มีลายน้ำ "[Sent with Free Plan]") → Ayrshare (สำรอง)
         let postResult: any = null;
-        let usedProvider = "ayrshare";
+        let usedProvider = FB_PAGE_TOKEN && FB_PAGE_ID ? "facebook-direct" : "ayrshare";
 
-        if (AYRSHARE_API_KEY) {
+        if (usedProvider === "facebook-direct") {
+            try {
+                const fbRes = await postViaFacebook(caption, finalImageUrl);
+                console.error(`[FB direct] โพสต์สำเร็จ id=${fbRes.id || fbRes.post_id}`);
+                const platforms: any[] = [{ platform: "facebook", id: fbRes.id || fbRes.post_id, status: "success" }];
+                if (IG_USER_ID && finalImageUrl) {
+                    try {
+                        const igRes = await postViaInstagram(caption, finalImageUrl);
+                        console.error(`[IG direct] โพสต์สำเร็จ id=${igRes.id}`);
+                        platforms.push({ platform: "instagram", id: igRes.id, status: "success" });
+                    } catch (e: any) {
+                        console.error(`[IG direct] ไม่สำเร็จ (FB โพสต์ไปแล้ว): ${e.message}`);
+                        platforms.push({ platform: "instagram", status: "failed", error: e.message });
+                    }
+                }
+                postResult = { status: "PUBLISHED", provider: "facebook-direct", platforms, imageUrl: finalImageUrl };
+            } catch (e: any) {
+                // FB ตรงล่ม → ค่อยถอยไป Ayrshare (ยอมมีลายน้ำดีกว่าไม่ได้โพสต์)
+                console.error(`[FB direct] Error → fallback Ayrshare: ${e.message}`);
+                usedProvider = "ayrshare";
+            }
+        }
+
+        if (!postResult && usedProvider === "ayrshare" && AYRSHARE_API_KEY) {
             const postRes = await fetch("https://app.ayrshare.com/api/post", {
                 method: "POST",
                 headers: {
@@ -217,12 +271,13 @@ async function run() {
                     imageUrl: finalImageUrl
                 };
             }
-        } else {
+        } else if (!postResult && usedProvider === "ayrshare") {
+            // ไม่มี AYRSHARE_API_KEY → ลอง Facebook ตรงเป็นทางสุดท้าย
             usedProvider = "facebook";
         }
 
-        // Fallback: Facebook Graph API
-        if (usedProvider === "facebook") {
+        // Fallback: Facebook Graph API (เฉพาะตอนยังไม่มีผลโพสต์เท่านั้น — กันโพสต์เบิ้ล)
+        if (!postResult && usedProvider === "facebook") {
             if (!FB_PAGE_TOKEN || !FB_PAGE_ID) {
                 throw new Error("Ayrshare quota หมด และไม่มี FB_PAGE_TOKEN/FB_PAGE_ID สำรอง");
             }
