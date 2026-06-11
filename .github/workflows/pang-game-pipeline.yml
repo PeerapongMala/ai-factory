@@ -6,6 +6,11 @@ on:
     - cron: '13,43 * * * *'  # Every 30 minutes (off-peak minutes), 24/7
   workflow_dispatch: # Manual trigger button
 
+# กันรันซ้อน: ถ้า cron GitHub กับตัวยิงจากเครื่อง admin มาพร้อมกัน ให้เข้าคิวทีละรอบ (dedup hash จะกันโพสต์ซ้ำเอง)
+concurrency:
+  group: pang-pipeline
+  cancel-in-progress: false
+
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
