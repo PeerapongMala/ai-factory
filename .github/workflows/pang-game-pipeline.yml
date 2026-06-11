@@ -2,7 +2,8 @@ name: Pang Game - Static Post Pipeline
 
 on:
   schedule:
-    - cron: '*/30 * * * *'  # Every 30 minutes, 24/7
+    # หลบนาที :00/:30 ที่ทุก repo ทั้งโลกตั้งกัน — คิว GitHub แน่นจนโดนเลื่อน/ข้ามเป็นชั่วโมง
+    - cron: '13,43 * * * *'  # Every 30 minutes (off-peak minutes), 24/7
   workflow_dispatch: # Manual trigger button
 
 jobs:
