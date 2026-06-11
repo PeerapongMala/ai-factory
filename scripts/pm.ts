@@ -84,7 +84,7 @@ async function pmReport(message: string) {
   await sendDiscord(message);
 }
 
-// === บทพูดจริงของพนักงาน (เฟส 1) — เขียนสิ่งที่ทำจริงลงไฟล์ให้ dashboard อ่าน + ส่ง Discord ===
+// === บทพูดจริงของพนักงาน (เฟส 1) — เขียนสิ่งที่ทำจริงลงไฟล์ให้ dashboard อ่าน ===
 function teamSay(id: string, name: string, text: string) {
   try {
     const { readFileSync, writeFileSync, mkdirSync } = require("fs");
@@ -97,7 +97,8 @@ function teamSay(id: string, name: string, text: string) {
     arr.push({ id, name, text: String(text).slice(0, 140), t: new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }) });
     writeFileSync(f, JSON.stringify(arr.slice(-60), null, 2));
   } catch {}
-  sendDiscord(`💬 **${name}:** ${text}`);
+  // บทพูดรายประโยคไว้ดูใน dashboard พอ — Discord เอาแค่รายงานสรุปจบรอบจาก pmReport (เปิดกลับได้ด้วย DISCORD_TEAM_CHAT=1)
+  if (process.env.DISCORD_TEAM_CHAT === "1") sendDiscord(`💬 **${name}:** ${text}`);
   log(name, `(พูด) ${text}`);
 }
 
