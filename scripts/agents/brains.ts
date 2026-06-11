@@ -17,6 +17,19 @@ export interface PMVerdict { action: "approve" | "revise" | "train" | "skip"; re
 function writerCfg(): { cfg: ProviderConfig; system: string; gen: any } {
   const a = loadAgent("writer.json");
   const cfg = buildProviderConfig(a, { provider: "gemini", model: "gemini-2.5-flash" });
+  // ตาข่ายชั้นล่างสุด: Gemini free tier ล่ม/quota (429) ตอนรันบน cloud → สลับไป Mistral อัตโนมัติ
+  // (มี MISTRAL_API_KEY อยู่แล้วเพราะ guardian/PM ใช้) กันทั้งรอบพังเพราะนักเขียนเขียนไม่ได้
+  const mistralFallback: ProviderConfig = {
+    provider: "openai",
+    model: "mistral-large-latest",
+    apiKeyEnv: "MISTRAL_API_KEY",
+    baseUrl: "https://api.mistral.ai/v1",
+  };
+  if (cfg.provider === "openclaw") {
+    if (cfg.fallback && !cfg.fallback.fallback) cfg.fallback.fallback = mistralFallback;
+  } else if (!cfg.fallback) {
+    cfg.fallback = mistralFallback;
+  }
   const system = (a.systemPrompt || "") + getMemoryPrompt("writer.json") + getLessonsPrompt("writer.json");
   return { cfg, system, gen: a.generationConfig || {} };
 }

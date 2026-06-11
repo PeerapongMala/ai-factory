@@ -236,6 +236,7 @@ async function pmRun() {
   const approvedItems: any[] = [];
   let totalRetries = 0;
   let totalLessons = 0;
+  let lastError = ""; // เก็บ error จริงของนักเขียนรอบล่าสุด เพื่อรายงานเข้า Discord (เลิก fail เงียบ)
 
   for (const newsItem of newsItems) {
     teamSay("writer", "นักเขียน", `รับงานข่าว "${String(newsItem.title || "").slice(0, 36)}" ขอเขียนร่างแรกก่อน...`);
@@ -244,8 +245,10 @@ async function pmRun() {
     try {
       script = await writeCaption(newsItem);
     } catch (e: any) {
-      log("นักเขียน", `เขียนไม่ได้: ${e.message}`);
-      teamSay("writer", "นักเขียน", "เขียนข่าวนี้ไม่ได้ ขอข้ามไปก่อน");
+      const reason = String(e?.message || e).slice(0, 200);
+      lastError = reason;
+      log("นักเขียน", `เขียนไม่ได้: ${reason}`);
+      teamSay("writer", "นักเขียน", `เขียนข่าวนี้ไม่ได้ ขอข้ามไปก่อน (สาเหตุ: ${reason.slice(0, 100)})`);
       recordWork("writer.json", { passed: false });
       continue;
     }
@@ -340,7 +343,8 @@ async function pmRun() {
   if (approvedItems.length === 0) {
     teamSay("pm", "PM", "รอบนี้ยังไม่มีโพสต์ผ่านเกณฑ์ ขอข้ามไปก่อน");
     log("PM", "ไม่มี content ผ่าน — ปิดประชุม");
-    await pmReport(`⚠️ <b>PM AI</b>\n\nรอบนี้ไม่มี content ผ่านเกณฑ์ (แก้ ${totalRetries} รอบ)\nเวลา: ${ts()}`);
+    const errLine = lastError ? `\nสาเหตุล่าสุด: ${lastError}` : "";
+    await pmReport(`⚠️ <b>PM AI</b>\n\nรอบนี้ไม่มี content ผ่านเกณฑ์ (แก้ ${totalRetries} รอบ)${errLine}\nเวลา: ${ts()}`);
     return;
   }
 

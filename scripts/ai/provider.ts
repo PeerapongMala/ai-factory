@@ -245,7 +245,14 @@ export async function generateWithRetry(
     try {
       return await generateContent(config, req);
     } catch (err: any) {
-      const isRetryable = err.message?.includes("429") || err.message?.includes("529") || err.message?.includes("overloaded") || err.message?.includes("quota") || err.message?.includes("rate") || err.message?.includes("503") || err.message?.includes("500");
+      const msg: string = err.message || "";
+      // Auth/config errors will never succeed on retry — fail fast with a clear message
+      const isFatal = msg.includes("API_KEY_INVALID") || msg.includes("API key expired") || msg.includes("PERMISSION_DENIED") || msg.includes("401") || msg.includes("403");
+      if (isFatal) {
+        console.error(`[AI] FATAL (${config.provider}): API key ใช้ไม่ได้/หมดอายุ — ต้องสร้าง key ใหม่แล้วอัปเดต secret`);
+        throw err;
+      }
+      const isRetryable = msg.includes("429") || msg.includes("529") || msg.includes("overloaded") || msg.includes("quota") || msg.includes("rate limit") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("503") || msg.includes("500");
       if (isRetryable && attempt < maxRetries) {
         console.error(`[AI] Rate limited (${config.provider}). Retry ${attempt}/${maxRetries} in ${delayMs / 1000}s...`);
         await Bun.sleep(delayMs);
