@@ -44,6 +44,21 @@ async function sendDiscord(message: string) {
   }
 }
 
+// === CTA ทิ้งท้าย: ต้องเป๊ะเสมอ ห้ามเชื่อ LLM (เคยเพี้ยนเป็น "เกมถูกบอกด้วย v.3") ===
+const CTA_CANONICAL = "ติดตามเพจใหม่เพื่อรับข่าวสารเพิ่มเติมได้ที่นี่ เกมปังv2";
+function normalizeCTA(caption: string): string {
+  if (typeof caption !== "string" || !caption.trim()) return caption;
+  const lines = caption.split("\n");
+  // ตัดบรรทัดท้ายที่เป็น CTA/ชื่อเพจที่นักเขียนเขียนเอง (ทุกเวอร์ชัน เพี้ยน/ถูกก็ตัด) ออกให้หมด
+  while (lines.length) {
+    const last = lines[lines.length - 1].trim();
+    if (last === "" || last === "." || last.includes("ติดตามเพจ") || last.includes("เกมปัง") || last.includes("เกมถูกบอก")) {
+      lines.pop();
+    } else break;
+  }
+  return lines.join("\n").trimEnd() + "\n\n" + CTA_CANONICAL;
+}
+
 // โหมดโพสต์: "auto" = โพสต์เลย, "approve" = ส่งตรวจก่อน
 function getPostMode(): "auto" | "approve" {
   try {
@@ -336,7 +351,7 @@ async function pmRun() {
     if (approved) {
       approvedItems.push({
         source_article: newsItem,
-        generated_script: { mood: script.mood, headline: script.headline, caption: script.caption },
+        generated_script: { mood: script.mood, headline: script.headline, caption: normalizeCTA(script.caption) },
       });
     }
   }
@@ -408,7 +423,7 @@ async function pmRun() {
         rawImageUrl = undefined;
       }
 
-      if (rawImageUrl) {
+      { // แปะการ์ดเสมอ (ไม่มีรูปข่าว → stampSticker ใช้ภาพแบรนด์ default ให้ ไม่มี preview ไร้รูป)
         try {
           const mood = sc.mood === "fail" ? "fail" : "good";
           const headline = sc.headline || item.source_article?.title || "";
