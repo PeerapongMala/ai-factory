@@ -1,13 +1,11 @@
 {
   "name": "ตรวจสอบ",
   "role": "Guardian - ตรวจสอบคุณภาพ content ก่อนโพสต์",
-  "description": "เช็คว่า content ถูกต้อง ไม่มีข้อมูลผิด ไม่ยาวเกินไป",
+  "description": "เช็คว่า content ถูกต้อง ไม่มีข้อมูลผิด ไม่ยาวเกินไป — แท็กหมวด [News]/[Deal]/[Update] ตั้งใจให้มี ไม่ถือเป็นของต้องห้าม",
   "model": "mistral-large-latest",
   "checks": [
-    "hash ไม่ซ้ำ",
-    "ข่าวไม่เกิน 24 ชม.",
-    "caption มี CTA",
-    "mascot_mood ตรงกับเนื้อหา"
+    "mascot_mood (good/fail) ตรงกับโทนข่าวจริง",
+    "ไม่มีลิงก์หรือข้อความโปรโมทแปลกปลอม นอกจาก CTA ท้ายโพสต์"
   ],
   "memory": [],
   "provider": "openai",

@@ -108,9 +108,9 @@ async function run() {
           caption = `${item.source_article?.title || ""}\n\n#เกมปังv2 #panggame`;
         }
 
-        // 🧹 sanitize: ล้างสัญลักษณ์ที่ทำให้อ่านขัด — '#' กลางประโยค, '[News]', markdown '**', bullet '*'
+        // 🧹 sanitize: ล้างสัญลักษณ์ที่ทำให้อ่านขัด — markdown '**', bullet '*', '#' กลางประโยค
+        // หมายเหตุ: แท็กหมวด [News]/[Deal]/[Update] = ตั้งใจให้โชว์บนโพสต์ ไม่ลบ
         caption = caption
-          .replace(/\[News\]\s*/gi, "")
           .replace(/\*\*/g, "")
           .replace(/^\s*\*\s+/gm, "- ")
           .replace(/#/g, "")
@@ -143,7 +143,8 @@ async function run() {
                 });
                 const html = await pageRes.text();
                 const ogMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
-                    || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+                    || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)
+                    || html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i);
                 if (ogMatch?.[1]) {
                     rawImageUrl = ogMatch[1];
                     console.error(`[Image] og:image จากข่าว: ${rawImageUrl}`);
@@ -180,23 +181,21 @@ async function run() {
             rawImageUrl = undefined;
         }
 
-        // === แปะสติกเกอร์น้องปัง + headline ===
+        // === แปะการ์ดน้องปัง + headline (เสมอ — ไม่มีรูปข่าว stampSticker จะใช้ภาพแบรนด์ default ให้) ===
         let finalImageUrl = rawImageUrl;
-        if (rawImageUrl) {
-            try {
-                const mood = scriptJson.mood === "fail" ? "fail" : "good";
-                const headline = scriptJson.headline || item.source_article?.title || "";
-                // สร้าง summary จาก caption
-                const capStr = typeof caption === "string" ? caption : "";
-                const summaryLines = capStr.split("\n").filter((l: string) => l.trim() && !l.includes("ติดตามเพจ") && !l.includes("เกมปังv2")).slice(0, 3);
-                const summary = summaryLines.join("\n").slice(0, 200);
-                const idx = results.length;
-                const localPath = await stampSticker(rawImageUrl, mood, headline, `post_${idx}.jpg`, summary);
-                finalImageUrl = await uploadImage(localPath);
-                console.error(`[Sticker] ${mood} + headline → ${finalImageUrl}`);
-            } catch (e: any) {
-                console.error(`[Sticker] แปะไม่ได้ ใช้รูปเดิม: ${e.message}`);
-            }
+        try {
+            const mood = scriptJson.mood === "fail" ? "fail" : "good";
+            const headline = scriptJson.headline || item.source_article?.title || "";
+            // สร้าง summary จาก caption
+            const capStr = typeof caption === "string" ? caption : "";
+            const summaryLines = capStr.split("\n").filter((l: string) => l.trim() && !l.includes("ติดตามเพจ") && !l.includes("เกมปังv2")).slice(0, 3);
+            const summary = summaryLines.join("\n").slice(0, 200);
+            const idx = results.length;
+            const localPath = await stampSticker(rawImageUrl, mood, headline, `post_${idx}.jpg`, summary);
+            finalImageUrl = await uploadImage(localPath);
+            console.error(`[Sticker] ${mood} + headline → ${finalImageUrl}`);
+        } catch (e: any) {
+            console.error(`[Sticker] แปะไม่ได้ ใช้รูปเดิม: ${e.message}`);
         }
 
         // autoHashtag ปิดถาวร — Ayrshare เคยยัด # กลางประโยค (แม้แต่ใน CTA) ทำให้อ่านขัดมาก
