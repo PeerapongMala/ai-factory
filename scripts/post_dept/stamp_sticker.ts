@@ -12,6 +12,7 @@ import { execSync } from "child_process";
 
 const STICKER_GOOD = join(__dirname, "../../assets/sticker Pang good rm bg.png");
 const STICKER_FAIL = join(__dirname, "../../assets/sticker Pang fail rm bg.png");
+const DEFAULT_BG = join(__dirname, "../../assets/Pang game.png"); // ภาพแบรนด์น้องปัง ใช้เป็น default เมื่อข่าวไม่มีรูป
 const OUTPUT_DIR = join(__dirname, "../../tmp");
 
 if (!existsSync(OUTPUT_DIR)) mkdirSync(OUTPUT_DIR, { recursive: true });
@@ -36,34 +37,45 @@ try {
   }
 } catch (e: any) { console.log("[Font] Setup error:", e.message); }
 
-async function createTextBuffer(text: string, maxWidth: number): Promise<Buffer> {
+export async function createTextBuffer(text: string, maxWidth: number, maxHeight = 250): Promise<Buffer> {
   const escaped = text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-  try {
-    const textBuf = await sharp({
-      text: {
-        text: `<span foreground="white" font_desc="Sans Bold 64">${escaped}</span>`,
-        rgba: true,
-        width: maxWidth,
-        align: "left",
-      }
-    }).png().toBuffer();
+  // ย่อขนาดฟอนต์ลงทีละสเต็ปจนข้อความ "พอดีกล่อง" ทั้งแนวนอนและแนวตั้ง
+  // - width + wrap:"word-char" → ตัดบรรทัดได้แม้ภาษาไทยที่ไม่มีเว้นวรรค (กันล้นออกขอบขวา)
+  // - วัดความสูงจริง ถ้ายังเกิน maxHeight ค่อยลดฟอนต์ (กันล้นลงไปทับรูป)
+  let last: Buffer | null = null;
+  for (const size of [64, 56, 50, 44, 38, 33, 28]) {
+    try {
+      const buf = await sharp({
+        text: {
+          text: `<span foreground="white" font_desc="Sans Bold ${size}">${escaped}</span>`,
+          rgba: true,
+          width: maxWidth,
+          align: "left",
+          wrap: "word-char",
+        } as any
+      }).png().toBuffer();
+      const h = (await sharp(buf).metadata()).height || 0;
+      last = buf;
+      if (h <= maxHeight) return buf;
+    } catch {
+      break; // libvips text ใช้ไม่ได้ → ไป fallback SVG
+    }
+  }
+  if (last) return last; // ยาวจริงๆ จนฟอนต์เล็กสุดก็ยังเกิน → ใช้ตัวเล็กสุดที่ได้ (ดีกว่าโยน error)
 
-    return textBuf;
-  } catch {
-    // Fallback SVG → แปลงเป็น PNG ผ่าน sharp
-    const trimmed = text.length > 60 ? text.slice(0, 57) + "..." : text;
-    const esc2 = trimmed.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const svg = `<svg width="${maxWidth}" height="160" xmlns="http://www.w3.org/2000/svg">
-      <text x="0" y="70" font-family="sans-serif" font-size="64" font-weight="bold"
+  // Fallback SVG (กรณี libvips text ใช้ไม่ได้เลย)
+  const trimmed = text.length > 60 ? text.slice(0, 57) + "..." : text;
+  const esc2 = trimmed.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const svg = `<svg width="${maxWidth}" height="160" xmlns="http://www.w3.org/2000/svg">
+      <text x="0" y="70" font-family="sans-serif" font-size="56" font-weight="bold"
         fill="white">${esc2}</text>
     </svg>`;
-    return await sharp(Buffer.from(svg)).png().toBuffer();
-  }
+  return await sharp(Buffer.from(svg)).png().toBuffer();
 }
 
 /** สร้าง overlay text สำหรับแถบดำ — headline ใหญ่ + summary เล็กกว่า */
@@ -83,7 +95,8 @@ async function createOverlayText(headline: string, summary: string, maxWidth: nu
         rgba: true,
         width: maxWidth,
         align: "left",
-      }
+        wrap: "word-char",
+      } as any
     }).png().toBuffer();
     return textBuf;
   } catch {
@@ -93,7 +106,7 @@ async function createOverlayText(headline: string, summary: string, maxWidth: nu
 }
 
 export async function stampSticker(
-  imageUrl: string,
+  imageUrl: string | null | undefined,
   mood: "good" | "fail",
   headline: string,
   filename: string,
@@ -103,14 +116,35 @@ export async function stampSticker(
   const BAR_H = 300;                         // แถบดำ — headline only (เนื้อหาอยู่ใน caption)
   const IMAGE_H = SIZE - BAR_H;              // รูปข่าวส่วนที่เหลือ
 
-  // 1. ดาวน์โหลดรูปข่าว
-  const res = await fetch(imageUrl);
-  if (!res.ok) throw new Error(`Download image failed: ${res.status}`);
-  const imageBuffer = Buffer.from(await res.arrayBuffer());
+  // 1. ดาวน์โหลดรูปข่าว — ไม่มี/โหลดไม่ได้ → ใช้ภาพแบรนด์น้องปังเป็น default (กันโพสต์ไม่มีรูป)
+  let imageBuffer: Buffer;
+  try {
+    if (!imageUrl) throw new Error("ไม่มี URL รูปข่าว");
+    const res = await fetch(imageUrl);
+    if (!res.ok) throw new Error(`โหลดรูปไม่ได้ ${res.status}`);
+    imageBuffer = Buffer.from(await res.arrayBuffer());
+  } catch (e: any) {
+    console.error(`[Image] ใช้ภาพแบรนด์ default — ${e.message}`);
+    imageBuffer = readFileSync(DEFAULT_BG);
+  }
 
-  // 2. Resize รูปข่าว
-  const photo = await sharp(imageBuffer)
+  // 2. รูปข่าว: โชว์ "เต็มภาพ" ไม่ครอปขอบ/ตัวละคร/ข้อความขาด (fit:inside = ทั้งภาพต้องอยู่ในกรอบ)
+  //    เติมที่ว่างด้วยภาพเดียวกันแบบเบลอ+หรี่ → ไม่มีแถบดำน่าเกลียด ดูโปร
+  const bg = await sharp(imageBuffer)
     .resize(SIZE, IMAGE_H, { fit: "cover" })
+    .blur(30)
+    .modulate({ brightness: 0.5 })
+    .toBuffer();
+  const fg = await sharp(imageBuffer)
+    .resize(SIZE, IMAGE_H, { fit: "inside" })
+    .toBuffer();
+  const fgMeta = await sharp(fg).metadata();
+  const photo = await sharp(bg)
+    .composite([{
+      input: fg,
+      left: Math.round((SIZE - (fgMeta.width || SIZE)) / 2),
+      top: Math.round((IMAGE_H - (fgMeta.height || IMAGE_H)) / 2),
+    }])
     .toBuffer();
 
   // 3. Resize สติกเกอร์น้องปัง — วางซ้ายล่าง ใหญ่ขึ้น
