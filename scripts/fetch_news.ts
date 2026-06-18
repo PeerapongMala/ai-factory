@@ -61,8 +61,41 @@ function cleanHtml(htmlStr: string): string {
                 .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
                 .replace(/<[^>]*>?/gm, ' ')
                 .replace(/&nbsp;/g, ' ')
+                .replace(/&#160;/g, ' ')
                 .replace(/\s+/g, ' ')
                 .trim();
+}
+
+// ตัดย่อหน้าที่เป็นเมนู/boilerplate ออก (ไม่ใช่เนื้อข่าว)
+const BOILER = /(dark mode|latest news|advertise|careers|subscribe|cookie|sign ?up|log ?in|all rights|powered by|read more|share this|related|tags:|support|about us|contact|\[email)/i;
+
+/**
+ * ดึง "เนื้อหาเต็ม" จากหน้าข่าวจริง (ไม่ใช่แค่ excerpt สั้นๆ ใน RSS)
+ * → นักเขียนจะได้รายละเอียดครบ (ชื่อเกม/วันที่/แพลตฟอร์ม) ไม่เขียนลอยๆ เช่น "4 เกม" แต่ไม่บอกชื่อ
+ * ล้มเหลว/ช้า → คืน "" แล้วใช้ RSS summary แทน (ไม่ทำให้ pipeline พัง)
+ */
+async function fetchArticleText(link: string): Promise<string> {
+  try {
+    const res = await fetch(link, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; PangBot/1.0)" },
+      redirect: "follow",
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return '';
+    const html = await res.text();
+    const stripped = html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '');
+    const scope = stripped.match(/<article[^>]*>([\s\S]*?)<\/article>/i)?.[1] || stripped;
+    const paras = [...scope.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
+      .map(m => cleanHtml(m[1]))
+      .filter(t => t.length > 50 && !BOILER.test(t));
+    let text = [...new Set(paras)].join(' ').trim();
+    // เนื้อบางไป → เสริมด้วย og:description (clean เสมอ)
+    const og = stripped.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)?.[1];
+    if (og && cleanHtml(og).length > text.length) text = cleanHtml(og);
+    return text.slice(0, 1600).trim();
+  } catch {
+    return '';
+  }
 }
 
 async function fetchNews(): Promise<ResearcherOutput> {
@@ -135,10 +168,17 @@ async function fetchNews(): Promise<ResearcherOutput> {
               if (imgMatch) image = imgMatch[1];
             }
 
+            const link = linkMatch[1].trim();
+            const rssSummary = cleanHtml(descMatch ? descMatch[1] : '');
+            // ดึงเนื้อหาเต็มจากหน้าข่าวจริง → นักเขียนได้รายละเอียดครบ (ชื่อเกม/วันที่/แพลตฟอร์ม)
+            // เนื้อหาเต็มยาวกว่า excerpt → ใช้แทน, ถ้าดึงไม่ได้ค่อย fallback กลับ RSS summary
+            const articleText = await fetchArticleText(link);
+            const summary = (articleText && articleText.length > rssSummary.length) ? articleText : rssSummary;
+
             allNews.push({
               title: cleanHtml(rawTitle),
-              link: linkMatch[1].trim(),
-              summary: cleanHtml(descMatch ? descMatch[1] : ''),
+              link,
+              summary,
               source: source.name,
               image
             });
