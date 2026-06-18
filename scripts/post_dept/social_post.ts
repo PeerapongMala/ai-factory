@@ -181,7 +181,14 @@ async function run() {
             rawImageUrl = undefined;
         }
 
-        // === แปะการ์ดน้องปัง + headline (เสมอ — ไม่มีรูปข่าว stampSticker จะใช้ภาพแบรนด์ default ให้) ===
+        // === กฎแอดมิน: หารูปข่าวไม่เจอ → ไม่โพสต์เลย (guardian บล็อก) ===
+        if (!rawImageUrl) {
+            console.error(`[Guardian] บล็อกโพสต์: หารูปข่าวไม่เจอ → ไม่ลง "${(item.source_article?.title || "").slice(0, 60)}"`);
+            results.push({ ...item, distribution: { status: "BLOCKED", reason: "ไม่มีรูปข่าว — guardian บล็อก (กฎแอดมิน)" } });
+            continue;
+        }
+
+        // === แปะการ์ดน้องปัง + headline ลงบนรูปข่าวจริง ===
         let finalImageUrl = rawImageUrl;
         try {
             const mood = scriptJson.mood === "fail" ? "fail" : "good";
