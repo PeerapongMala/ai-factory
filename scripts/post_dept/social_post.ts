@@ -117,10 +117,16 @@ async function run() {
           .replace(/[ \t]{2,}/g, " ")
           .trim();
 
-        // ⛔ guard ชั้นสุดท้าย: caption ไม่มีเนื้อหาจริง → ข้าม ไม่โพสต์ (กันโพสต์เหลือแต่ CTA)
-        if (caption.replace(/["'\s]/g, "").length < 30) {
-          console.error(`[Post] ข้าม item — caption ว่าง/สั้นเกิน (${caption.length} chars): "${caption.slice(0, 50)}"`);
-          results.push({ ...item, distribution: { status: "SKIPPED", reason: "empty caption" } });
+        // ⛔ guard ชั้นสุดท้าย: วัด "เนื้อข่าวจริง" หลังตัด CTA + แท็กหมวดออก → กันโพสต์เหลือแต่ CTA ลอยๆ
+        // (CTA ยาว ~48 ตัว เคยทำให้ guard เดิมที่วัด length เฉยๆ ผ่านทั้งที่ไม่มีข่าว)
+        const realBody = caption
+          .replace(/ติดตามเพจ[^\n]*/g, "")
+          .replace(/เกมปังv2/gi, "")
+          .replace(/\[(News|Deal|Update)\]/gi, "")
+          .replace(/["'\s]/g, "");
+        if (realBody.length < 20) {
+          console.error(`[Post] ข้าม item — ไม่มีเนื้อข่าวจริงหลังตัด CTA (${realBody.length} chars): "${caption.slice(0, 50)}"`);
+          results.push({ ...item, distribution: { status: "SKIPPED", reason: "empty caption (CTA-only)" } });
           continue;
         }
 
@@ -217,8 +223,12 @@ async function run() {
         // 3. โพสต์: FB/IG Graph API ตรง (หลัก — ไม่มีลายน้ำ "[Sent with Free Plan]") → Ayrshare (สำรอง)
         let postResult: any = null;
         let usedProvider = FB_PAGE_TOKEN && FB_PAGE_ID ? "facebook-direct" : "ayrshare";
+        // กันโพสต์เบิ้ล: ถ้าเคยยิง FB ไปแล้ว (แม้ throw — FB อาจสร้างโพสต์สำเร็จแต่ network ขาด)
+        // ห้ามวนกลับมายิง FB ซ้ำผ่าน fallback เด็ดขาด
+        let fbAttempted = false;
 
         if (usedProvider === "facebook-direct") {
+            fbAttempted = true;
             try {
                 const fbRes = await postViaFacebook(caption, finalImageUrl);
                 console.error(`[FB direct] โพสต์สำเร็จ id=${fbRes.id || fbRes.post_id}`);
@@ -286,6 +296,12 @@ async function run() {
         if (!postResult && usedProvider === "facebook") {
             if (!FB_PAGE_TOKEN || !FB_PAGE_ID) {
                 throw new Error("Ayrshare quota หมด และไม่มี FB_PAGE_TOKEN/FB_PAGE_ID สำรอง");
+            }
+            // ⛔ ถ้า FB-direct ยิงไปแล้ว (อาจสำเร็จเงียบๆ ทั้งที่ throw) ห้ามยิงซ้ำ — กันโพสต์เบิ้ล
+            if (fbAttempted) {
+                console.error("[Post] FB-direct ยิงไปแล้ว + Ayrshare ใช้ไม่ได้ → ไม่ยิง FB ซ้ำ (กันโพสต์เบิ้ล)");
+                results.push({ ...item, distribution: { status: "FAILED", reason: "FB-direct error + Ayrshare unavailable — ไม่ re-post กันเบิ้ล" } });
+                continue;
             }
             const fbRes = await postViaFacebook(caption, finalImageUrl);
             console.error(`[Facebook API] โพสต์สำเร็จ id=${fbRes.id || fbRes.post_id}`);

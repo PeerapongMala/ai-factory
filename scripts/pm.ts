@@ -47,7 +47,7 @@ async function sendDiscord(message: string) {
 // === CTA ทิ้งท้าย: ต้องเป๊ะเสมอ ห้ามเชื่อ LLM (เคยเพี้ยนเป็น "เกมถูกบอกด้วย v.3") ===
 const CTA_CANONICAL = "ติดตามเพจใหม่เพื่อรับข่าวสารเพิ่มเติมได้ที่นี่ เกมปังv2";
 function normalizeCTA(caption: string): string {
-  if (typeof caption !== "string" || !caption.trim()) return caption;
+  if (typeof caption !== "string" || !caption.trim()) return "";
   const lines = caption.split("\n");
   // ตัดบรรทัดท้ายที่เป็น CTA/ชื่อเพจที่นักเขียนเขียนเอง (ทุกเวอร์ชัน เพี้ยน/ถูกก็ตัด) ออกให้หมด
   while (lines.length) {
@@ -56,7 +56,11 @@ function normalizeCTA(caption: string): string {
       lines.pop();
     } else break;
   }
-  return lines.join("\n").trimEnd() + "\n\n" + CTA_CANONICAL;
+  // ⛔ ตัด CTA แล้วไม่เหลือเนื้อข่าวจริง (ตัดแท็กหมวดออกด้วย) → คืน "" ให้ปลายทางตัดทิ้ง
+  // ห้ามปั้น CTA ลอยๆ — เคยหลุดเป็นโพสต์เหลือแต่ "ติดตามเพจ..." ไม่มีข่าว
+  const body = lines.join("\n").trim();
+  if (body.replace(/\[(News|Deal|Update)\]/gi, "").trim().length < 10) return "";
+  return body + "\n\n" + CTA_CANONICAL;
 }
 
 // โหมดโพสต์: "auto" = โพสต์เลย, "approve" = ส่งตรวจก่อน
@@ -349,10 +353,17 @@ async function pmRun() {
     recordMechanical("guardian.json");
 
     if (approved) {
-      approvedItems.push({
-        source_article: newsItem,
-        generated_script: { mood: script.mood, headline: script.headline, caption: normalizeCTA(script.caption) },
-      });
+      // ⛔ ship guard สุดท้าย: normalizeCTA คืน "" = ไม่เหลือเนื้อข่าวจริง → ตัดทิ้ง อย่าโพสต์ CTA ลอยๆ
+      const finalCaption = normalizeCTA(script.caption);
+      if (!finalCaption.trim()) {
+        teamSay("pm", "PM", "caption เหลือแต่ CTA ไม่มีเนื้อข่าวจริง ขอตัดข่าวนี้ทิ้ง กันโพสต์เสีย");
+        log("PM", "ตัดข่าว: caption เหลือแต่ CTA หลัง normalize");
+      } else {
+        approvedItems.push({
+          source_article: newsItem,
+          generated_script: { mood: script.mood, headline: script.headline, caption: finalCaption },
+        });
+      }
     }
   }
 
