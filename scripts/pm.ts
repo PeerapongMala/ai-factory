@@ -491,16 +491,28 @@ async function pmRun() {
     return;
   }
 
+  // platforms ที่โพสต์ "จริง" (อ่านจากผลโพสต์ ไม่ hardcode) — กันรายงานว่าลง IG ทั้งที่ IG ยังไม่ได้ตั้งค่า/โพสต์ไม่สำเร็จ
+  const postedSet = new Set<string>();
+  for (const r of (Array.isArray(post.data?.data) ? post.data.data : [])) {
+    const plats = r?.distribution?.platforms;
+    if (!Array.isArray(plats)) continue;
+    for (const p of plats) {
+      if (typeof p === "string" && p) postedSet.add(p.toLowerCase());
+      else if (p?.platform && p.status !== "failed" && p.status !== "error") postedSet.add(String(p.platform).toLowerCase());
+    }
+  }
+  const platLabel = [...new Set([...postedSet].map(p => p.includes("insta") ? "Instagram" : p.includes("face") ? "Facebook" : p))].join(" + ") || "Facebook";
+
   recordMechanical("graphic.json");
   recordMechanical("publisher.json");
-  teamSay("publisher", "โพสต์", "โพสต์ลงเพจ FB + IG เรียบร้อยแล้ว!");
+  teamSay("publisher", "โพสต์", `โพสต์ลงเพจ ${platLabel} เรียบร้อยแล้ว!`);
   teamSay("pm", "PM", "งานดีมากทีม รอบนี้เสร็จเรียบร้อย รอฟังถ้าแอดมินอยากปรับอะไร");
 
   // 7. PM สรุปงาน
   log("PM", "=== งานเสร็จทั้งหมด ปิดประชุม ===");
 
   const titles = approvedItems.map((it: any) => it.generated_script?.headline || it.source_article?.title).join("\n• ") || "N/A";
-  await pmReport(`✅ <b>PM AI Report</b>\n\n📰 ข่าวที่โพสต์:\n• ${titles}\n\n🧠 ทีมงาน: ${reviewNote}\n📱 Platforms: Facebook + Instagram\n🕐 เวลา: ${ts()}`);
+  await pmReport(`✅ <b>PM AI Report</b>\n\n📰 ข่าวที่โพสต์:\n• ${titles}\n\n🧠 ทีมงาน: ${reviewNote}\n📱 Platforms: ${platLabel}\n🕐 เวลา: ${ts()}`);
 }
 
 // ===== PM เทรนพนักงาน =====
